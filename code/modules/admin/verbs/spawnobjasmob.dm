@@ -38,7 +38,7 @@
 
 		basemob = text2path(mainsettings["mobtype"]["value"])
 		if (!ispath(basemob, /mob/living/simple_animal/hostile/mimic/copy) || !ispath(chosen_obj, /obj))
-			to_chat(usr, "Mob or object path invalid")
+			to_chat(usr, "Mob or object path invalid", confidential = TRUE)
 
 		basemob = new basemob(get_turf(usr), new chosen_obj(get_turf(usr)), usr, mainsettings["dropitem"]["value"] == "Yes" ? FALSE : TRUE, (mainsettings["googlyeyes"]["value"] == "Yes" ? FALSE : TRUE))
 
@@ -66,5 +66,5 @@
 			basemob.ckey = mainsettings["ckey"]["value"]
 
 
-		log_admin("[key_name(usr)] spawned a sentient object-mob [basemob] from [chosen_obj] at ([usr.x],[usr.y],[usr.z])")
+		log_admin("[key_name(usr)] spawned a sentient object-mob [basemob] from [chosen_obj] at [AREACOORD(usr)]")
 		SSblackbox.record_feedback("tally", "admin_verb", 1, "Spawn object-mob") //If you are copy-pasting this, ensure the 2nd parameter is unique to the new proc!

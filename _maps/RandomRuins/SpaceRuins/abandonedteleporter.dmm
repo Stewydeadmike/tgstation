@@ -8,7 +8,7 @@
 "c" = (
 /obj/structure/lattice,
 /turf/template_noop,
-/area/space/nearstation)
+/area/template_noop)
 "d" = (
 /obj/structure/frame/computer,
 /turf/open/floor/plating/airless,
@@ -72,12 +72,12 @@
 /area/ruin/space/abandoned_tele)
 "q" = (
 /obj/effect/decal/cleanable/dirt,
-/obj/item/device/flashlight,
+/obj/item/flashlight,
 /turf/open/floor/plating/airless,
 /area/ruin/space/abandoned_tele)
 "r" = (
 /obj/effect/decal/cleanable/dirt,
-/obj/item/device/beacon,
+/obj/item/beacon,
 /turf/open/floor/plating/airless,
 /area/ruin/space/abandoned_tele)
 "s" = (
@@ -99,6 +99,7 @@
 /area/ruin/space/abandoned_tele)
 "x" = (
 /obj/structure/closet,
+/obj/item/gps/spaceruin,
 /turf/open/floor/plating/airless,
 /area/ruin/space/abandoned_tele)
 "y" = (
@@ -110,8 +111,8 @@
 /area/ruin/space/abandoned_tele)
 "z" = (
 /obj/structure/closet/crate,
-/obj/item/device/aicard,
-/obj/item/device/multitool,
+/obj/item/aicard,
+/obj/item/multitool,
 /obj/item/weldingtool,
 /obj/item/wrench,
 /obj/item/circuitboard/computer/teleporter,

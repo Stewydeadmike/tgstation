@@ -34,7 +34,7 @@
 		user.visible_message("<span class='notice'>[user] reaches out and pinches the flame of [src].</span>", "<span class='warning'>You sever the connection between yourself and [src].</span>")
 		linked_minds -= user.mind
 	else
-		user.visible_message("<span class='notice'>[user] touches [src]. It seems to respond to their presence!</span>", "<span class='warning'>You create a connection between you and [src].</span>")
+		user.visible_message("<span class='notice'>[user] touches [src]. It seems to respond to [user.p_their()] presence!</span>", "<span class='warning'>You create a connection between you and [src].</span>")
 		linked_minds |= user.mind
 
 	update_icon()
@@ -46,7 +46,7 @@
 		STOP_PROCESSING(SSobj, src)
 		set_light(0)
 
-/obj/structure/life_candle/update_icon()
+/obj/structure/life_candle/update_icon_state()
 	if(linked_minds.len)
 		icon_state = icon_state_active
 	else
@@ -55,9 +55,9 @@
 /obj/structure/life_candle/examine(mob/user)
 	. = ..()
 	if(linked_minds.len)
-		to_chat(user, "[src] is active, and linked to [linked_minds.len] souls.")
+		. += "[src] is active, and linked to [linked_minds.len] souls."
 	else
-		to_chat(user, "It is static, still, unmoving.")
+		. += "It is static, still, unmoving."
 
 /obj/structure/life_candle/process()
 	if(!linked_minds.len)
@@ -85,10 +85,10 @@
 		mind.transfer_to(body)
 	else
 		body.forceMove(T)
-		body.revive(1,1)
+		body.revive(full_heal = TRUE, admin_revive = TRUE)
 	mind.grab_ghost(TRUE)
 	body.flash_act()
 
 	if(ishuman(body) && istype(outfit))
 		outfit.equip(body)
-	playsound(T, respawn_sound, 50, 1)
+	playsound(T, respawn_sound, 50, TRUE)

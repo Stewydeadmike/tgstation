@@ -9,8 +9,39 @@
 	var/appearance_cache
 
 	var/id
+	var/ordered = TRUE //If the button gets placed into the default bar
+
+/obj/screen/movable/action_button/proc/can_use(mob/user)
+	if (linked_action)
+		return linked_action.owner == user
+	else if (isobserver(user))
+		var/mob/dead/observer/O = user
+		return !O.observetarget
+	else
+		return TRUE
+
+/obj/screen/movable/action_button/MouseDrop(over_object)
+	if(!can_use(usr))
+		return
+	if((istype(over_object, /obj/screen/movable/action_button) && !istype(over_object, /obj/screen/movable/action_button/hide_toggle)))
+		if(locked)
+			to_chat(usr, "<span class='warning'>Action button \"[name]\" is locked, unlock it first.</span>")
+			return
+		var/obj/screen/movable/action_button/B = over_object
+		var/list/actions = usr.actions
+		actions.Swap(actions.Find(src.linked_action), actions.Find(B.linked_action))
+		moved = FALSE
+		ordered = TRUE
+		B.moved = FALSE
+		B.ordered = TRUE
+		usr.update_action_buttons()
+	else
+		return ..()
 
 /obj/screen/movable/action_button/Click(location,control,params)
+	if (!can_use(usr))
+		return FALSE
+
 	var/list/modifiers = params2list(params)
 	if(modifiers["shift"])
 		if(locked)
@@ -35,14 +66,34 @@
 /obj/screen/movable/action_button/hide_toggle
 	name = "Hide Buttons"
 	desc = "Shift-click any button to reset its position, and Control-click it to lock it in place. Alt-click this button to reset all buttons to their default positions."
-	icon = 'icons/mob/actions.dmi'
+	icon = 'icons/hud/actions.dmi'
 	icon_state = "bg_default"
-	var/hidden = 0
-	var/hide_icon = 'icons/mob/actions.dmi'
+	var/hidden = FALSE
+	var/hide_icon = 'icons/hud/actions.dmi'
 	var/hide_state = "hide"
 	var/show_state = "show"
+	var/mutable_appearance/hide_appearance
+	var/mutable_appearance/show_appearance
+
+/obj/screen/movable/action_button/hide_toggle/Initialize()
+	. = ..()
+	var/static/list/icon_cache = list()
+
+	var/cache_key = "[hide_icon][hide_state]"
+	hide_appearance = icon_cache[cache_key]
+	if(!hide_appearance)
+		hide_appearance = icon_cache[cache_key] = mutable_appearance(hide_icon, hide_state)
+
+	cache_key = "[hide_icon][show_state]"
+	show_appearance = icon_cache[cache_key]
+	if(!show_appearance)
+		show_appearance = icon_cache[cache_key] = mutable_appearance(hide_icon, show_state)
+
 
 /obj/screen/movable/action_button/hide_toggle/Click(location,control,params)
+	if (!can_use(usr))
+		return
+
 	var/list/modifiers = params2list(params)
 	if(modifiers["shift"])
 		if(locked)
@@ -79,7 +130,7 @@
 		name = "Show Buttons"
 	else
 		name = "Hide Buttons"
-	UpdateIcon()
+	update_icon()
 	usr.update_action_buttons()
 
 /obj/screen/movable/action_button/hide_toggle/AltClick(mob/user)
@@ -100,12 +151,14 @@
 	hide_icon = settings["toggle_icon"]
 	hide_state = settings["toggle_hide"]
 	show_state = settings["toggle_show"]
-	UpdateIcon()
+	update_icon()
 
-/obj/screen/movable/action_button/hide_toggle/proc/UpdateIcon()
-	cut_overlays()
-	add_overlay(mutable_appearance(hide_icon, hidden ? show_state : hide_state))
-
+/obj/screen/movable/action_button/hide_toggle/update_overlays()
+	. = ..()
+	if(hidden)
+		. += show_appearance
+	else
+		. += hide_appearance
 
 /obj/screen/movable/action_button/MouseEntered(location,control,params)
 	if(!QDELETED(src))
@@ -117,11 +170,11 @@
 
 /datum/hud/proc/get_action_buttons_icons()
 	. = list()
-	.["bg_icon"] = ui_style_icon
+	.["bg_icon"] = ui_style
 	.["bg_state"] = "template"
 
 	//TODO : Make these fit theme
-	.["toggle_icon"] = 'icons/mob/actions.dmi'
+	.["toggle_icon"] = 'icons/hud/actions.dmi'
 	.["toggle_hide"] = "hide"
 	.["toggle_show"] = "show"
 
@@ -149,13 +202,14 @@
 				client.screen += A.button
 	else
 		for(var/datum/action/A in actions)
-			button_number++
 			A.UpdateButtonIcon()
 			var/obj/screen/movable/action_button/B = A.button
-			if(!B.moved)
-				B.screen_loc = hud_used.ButtonNumberToScreenCoords(button_number)
-			else
+			if(B.ordered)
+				button_number++
+			if(B.moved)
 				B.screen_loc = B.moved
+			else
+				B.screen_loc = hud_used.ButtonNumberToScreenCoords(button_number)
 			if(reload_screen)
 				client.screen += B
 

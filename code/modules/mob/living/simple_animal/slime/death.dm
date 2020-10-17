@@ -3,7 +3,7 @@
 		return
 	if(!gibbed)
 		if(is_adult)
-			var/mob/living/simple_animal/slime/M = new(loc, colour)
+			var/mob/living/simple_animal/slime/M = new(drop_location(), colour)
 			M.rabid = TRUE
 			M.regenerate_icons()
 
@@ -13,7 +13,7 @@
 				R.Remove(src)
 			var/datum/action/innate/slime/evolve/E = new
 			E.Grant(src)
-			revive(full_heal = 1)
+			revive(full_heal = TRUE, admin_revive = FALSE)
 			regenerate_icons()
 			update_name()
 			return
@@ -21,23 +21,11 @@
 	if(buckled)
 		Feedstop(silent = TRUE) //releases ourselves from the mob we fed on.
 
-	stat = DEAD
+	set_stat(DEAD)
 	cut_overlays()
-
-	update_canmove()
-
-	if(SSticker.mode)
-		SSticker.mode.check_win()
 
 	return ..(gibbed)
 
 /mob/living/simple_animal/slime/gib()
-	death(1)
+	death(TRUE)
 	qdel(src)
-
-
-/mob/living/simple_animal/slime/Destroy()
-	for(var/obj/machinery/computer/camera_advanced/xenobio/X in GLOB.machines)
-		if(src in X.stored_slimes)
-			X.stored_slimes -= src
-	return ..()

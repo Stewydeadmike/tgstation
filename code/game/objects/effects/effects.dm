@@ -4,7 +4,9 @@
 /obj/effect
 	icon = 'icons/effects/effects.dmi'
 	resistance_flags = INDESTRUCTIBLE | LAVA_PROOF | FIRE_PROOF | UNACIDABLE | ACID_PROOF | FREEZE_PROOF
-	obj_flags = 0
+	move_resist = INFINITY
+	obj_flags = NONE
+	vis_flags = VIS_INHERIT_PLANE
 
 /obj/effect/take_damage(damage_amount, damage_type = BRUTE, damage_flag = 0, sound_effect = 1, attack_dir)
 	return
@@ -13,16 +15,13 @@
 	return
 
 /obj/effect/acid_act()
-	return
-
-/obj/effect/mech_melee_attack(obj/mecha/M)
-	return 0
+	return FALSE
 
 /obj/effect/blob_act(obj/structure/blob/B)
 	return
 
-/obj/effect/attack_hulk(mob/living/carbon/human/user, does_attack_animation = 0)
-	return 0
+/obj/effect/attack_hulk(mob/living/carbon/human/user)
+	return FALSE
 
 /obj/effect/experience_pressure_difference()
 	return
@@ -43,10 +42,6 @@
 
 /obj/effect/singularity_act()
 	qdel(src)
-	return 0
-
-/obj/effect/ConveyorMove()
-	return
 
 /obj/effect/abstract/ex_act(severity, target)
 	return
@@ -56,6 +51,9 @@
 
 /obj/effect/abstract/singularity_act()
 	return
+
+/obj/effect/abstract/has_gravity(turf/T)
+	return FALSE
 
 /obj/effect/dummy/singularity_pull()
 	return

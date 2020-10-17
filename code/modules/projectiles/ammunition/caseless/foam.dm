@@ -1,11 +1,13 @@
 /obj/item/ammo_casing/caseless/foam_dart
 	name = "foam dart"
 	desc = "It's nerf or nothing! Ages 8 and up."
-	projectile_type = /obj/item/projectile/bullet/reusable/foam_dart
+	projectile_type = /obj/projectile/bullet/reusable/foam_dart
 	caliber = "foam_force"
 	icon = 'icons/obj/guns/toy.dmi'
 	icon_state = "foamdart"
-	var/modified = 0
+	custom_materials = list(/datum/material/iron = 11.25)
+	harmful = FALSE
+	var/modified = FALSE
 
 /obj/item/ammo_casing/caseless/foam_dart/update_icon()
 	..()
@@ -22,21 +24,22 @@
 
 
 /obj/item/ammo_casing/caseless/foam_dart/attackby(obj/item/A, mob/user, params)
-	var/obj/item/projectile/bullet/reusable/foam_dart/FD = BB
-	if (istype(A, /obj/item/screwdriver) && !modified)
-		modified = 1
-		FD.modified = 1
+	var/obj/projectile/bullet/reusable/foam_dart/FD = BB
+	if (A.tool_behaviour == TOOL_SCREWDRIVER && !modified)
+		modified = TRUE
+		FD.modified = TRUE
 		FD.damage_type = BRUTE
 		to_chat(user, "<span class='notice'>You pop the safety cap off [src].</span>")
 		update_icon()
 	else if (istype(A, /obj/item/pen))
 		if(modified)
 			if(!FD.pen)
+				harmful = TRUE
 				if(!user.transferItemToLoc(A, FD))
 					return
 				FD.pen = A
 				FD.damage = 5
-				FD.nodamage = 0
+				FD.nodamage = FALSE
 				to_chat(user, "<span class='notice'>You insert [A] into [src].</span>")
 			else
 				to_chat(user, "<span class='warning'>There's already something in [src].</span>")
@@ -46,7 +49,7 @@
 		return ..()
 
 /obj/item/ammo_casing/caseless/foam_dart/attack_self(mob/living/user)
-	var/obj/item/projectile/bullet/reusable/foam_dart/FD = BB
+	var/obj/projectile/bullet/reusable/foam_dart/FD = BB
 	if(FD.pen)
 		FD.damage = initial(FD.damage)
 		FD.nodamage = initial(FD.nodamage)
@@ -57,5 +60,6 @@
 /obj/item/ammo_casing/caseless/foam_dart/riot
 	name = "riot foam dart"
 	desc = "Whose smart idea was it to use toys as crowd control? Ages 18 and up."
-	projectile_type = /obj/item/projectile/bullet/reusable/foam_dart/riot
+	projectile_type = /obj/projectile/bullet/reusable/foam_dart/riot
 	icon_state = "foamdart_riot"
+	custom_materials = list(/datum/material/iron = 1125)

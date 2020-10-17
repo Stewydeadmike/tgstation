@@ -8,6 +8,7 @@ Reproductive extracts:
 	desc = "It pulses with a strange hunger."
 	icon_state = "reproductive"
 	effect = "reproductive"
+	effect_desc = "When fed monkey cubes it produces more extracts. Bio bag compatible as well."
 	var/extract_type = /obj/item/slime_extract/
 	var/cubes_eaten = 0
 	var/last_produce = 0
@@ -18,30 +19,30 @@ Reproductive extracts:
 		to_chat(user, "<span class='warning'>[src] is still digesting!</span>")
 		return
 	if(istype(O, /obj/item/storage/bag/bio))
-		var/obj/item/storage/P = O
-		var/obj/item/reagent_containers/food/snacks/monkeycube/M
-		for(var/obj/item/X in P.contents)
-			M = X
-			if(M && istype(M))
-				break
-		if(M && istype(M))
-			P.remove_from_storage(M, get_turf(src))
-			attackby(M,user)
+		var/list/inserted = list()
+		SEND_SIGNAL(O, COMSIG_TRY_STORAGE_TAKE_TYPE, /obj/item/food/monkeycube, src, 1, null, null, user, inserted)
+		if(inserted.len)
+			var/obj/item/food/monkeycube/M = inserted[1]
+			if(istype(M))
+				eat_cube(M, user)
 		else
 			to_chat(user, "<span class='warning'>There are no monkey cubes in the bio bag!</span>")
-	if(istype(O,/obj/item/reagent_containers/food/snacks/monkeycube))
-		qdel(O)
-		cubes_eaten++
-		to_chat(user, "<span class='notice'>You feed [O] to [src], and it pulses gently.</span>")
-		playsound(src, 'sound/items/eatfood.ogg', 20, 1)
+	if(istype(O,/obj/item/food/monkeycube))
+		eat_cube(O, user)
 	if(cubes_eaten >= 3)
 		var/cores = rand(1,4)
 		visible_message("<span class='notice'>[src] briefly swells to a massive size, and expels [cores] extract[cores > 1 ? "s":""]!</span>")
-		playsound(src, 'sound/effects/splat.ogg', 40, 1)
+		playsound(src, 'sound/effects/splat.ogg', 40, TRUE)
 		last_produce = world.time
 		for(var/i = 0, i < cores, i++)
 			new extract_type(get_turf(loc))
 		cubes_eaten = 0
+
+/obj/item/slimecross/reproductive/proc/eat_cube(obj/item/reagent_containers/food/snacks/monkeycube, mob/user)
+		qdel(monkeycube)
+		cubes_eaten++
+		to_chat(user, "<span class='notice'>You feed [monkeycube] to [src], and it pulses gently.</span>")
+		playsound(src, 'sound/items/eatfood.ogg', 20, TRUE)
 
 /obj/item/slimecross/reproductive/grey
 	extract_type = /obj/item/slime_extract/grey

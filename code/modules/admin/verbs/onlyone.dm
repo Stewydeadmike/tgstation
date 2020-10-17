@@ -8,12 +8,30 @@ GLOBAL_VAR_INIT(highlander, FALSE)
 	send_to_playing_players("<span class='boldannounce'><font size=6>THERE CAN BE ONLY ONE</font></span>")
 
 	for(var/obj/item/disk/nuclear/N in GLOB.poi_list)
-		N.relocate() //Gets it out of bags and such
+		var/datum/component/stationloving/component = N.GetComponent(/datum/component/stationloving)
+		if (component)
+			component.relocate() //Gets it out of bags and such
 
 	for(var/mob/living/carbon/human/H in GLOB.player_list)
-		if(H.stat == DEAD || !(H.client))
+		if(H.stat == DEAD)
 			continue
 		H.make_scottish()
+
+	for(var/mob/living/silicon/ai/AI in GLOB.player_list)
+		if(!istype(AI) || AI.stat == DEAD)
+			continue
+		if(AI.deployed_shell)
+			AI.deployed_shell.undeploy()
+		AI.change_mob_type(/mob/living/silicon/robot , null, null)
+		AI.gib()
+
+	for(var/mob/living/silicon/robot/robot in GLOB.player_list)
+		if(!istype(robot) || robot.stat == DEAD)
+			continue
+		if(robot.shell)
+			robot.gib()
+			continue
+		robot.make_scottish()
 
 	message_admins("<span class='adminnotice'>[key_name_admin(usr)] used THERE CAN BE ONLY ONE!</span>")
 	log_admin("[key_name(usr)] used THERE CAN BE ONLY ONE.")
@@ -27,3 +45,6 @@ GLOBAL_VAR_INIT(highlander, FALSE)
 
 /mob/living/carbon/human/proc/make_scottish()
 	mind.add_antag_datum(/datum/antagonist/highlander)
+
+/mob/living/silicon/robot/proc/make_scottish()
+	mind.add_antag_datum(/datum/antagonist/highlander/robot)

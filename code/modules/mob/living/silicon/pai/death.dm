@@ -1,14 +1,11 @@
 /mob/living/silicon/pai/death(gibbed)
 	if(stat == DEAD)
 		return
-	stat = DEAD
-	canmove = 0
-	card.removePersonality()
-	card.forceMove(loc)
+	set_stat(DEAD)
 	update_sight()
 	clear_fullscreens()
 
 	//New pAI's get a brand new mind to prevent meta stuff from their previous life. This new mind causes problems down the line if it's not deleted here.
-	GLOB.alive_mob_list -= src
+	remove_from_alive_mob_list()
 	ghostize()
 	qdel(src)

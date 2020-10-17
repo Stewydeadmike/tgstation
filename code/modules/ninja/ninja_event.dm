@@ -59,7 +59,7 @@ Contents:
 	var/datum/mind/Mind = new /datum/mind(key)
 	Mind.assigned_role = ROLE_NINJA
 	Mind.special_role = ROLE_NINJA
-	Mind.active = 1
+	Mind.active = TRUE
 
 	//spawn the ninja and assign the candidate
 	var/mob/living/carbon/human/Ninja = create_space_ninja(spawn_loc)
@@ -69,10 +69,10 @@ Contents:
 	Mind.add_antag_datum(ninjadatum)
 
 	if(Ninja.mind != Mind)			//something has gone wrong!
-		throw EXCEPTION("Ninja created with incorrect mind")
+		CRASH("Ninja created with incorrect mind")
 
 	spawned_mobs += Ninja
-	message_admins("[key_name_admin(Ninja)] has been made into a ninja by an event.")
+	message_admins("[ADMIN_LOOKUPFLW(Ninja)] has been made into a ninja by an event.")
 	log_game("[key_name(Ninja)] was spawned as a ninja by an event.")
 
 	return SUCCESSFUL_SPAWN

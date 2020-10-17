@@ -1,7 +1,7 @@
 /client/proc/one_click_antag()
 	set name = "Create Antagonist"
 	set desc = "Auto-create an antagonist of your choice"
-	set category = "Admin"
+	set category = "Admin.Events"
 
 	if(holder)
 		holder.one_click_antag()
@@ -15,7 +15,6 @@
 		<a href='?src=[REF(src)];[HrefToken()];makeAntag=changelings'>Make Changelings</a><br>
 		<a href='?src=[REF(src)];[HrefToken()];makeAntag=revs'>Make Revs</a><br>
 		<a href='?src=[REF(src)];[HrefToken()];makeAntag=cult'>Make Cult</a><br>
-		<a href='?src=[REF(src)];[HrefToken()];makeAntag=clockcult'>Make Clockwork Cult</a><br>
 		<a href='?src=[REF(src)];[HrefToken()];makeAntag=blob'>Make Blob</a><br>
 		<a href='?src=[REF(src)];[HrefToken()];makeAntag=wizard'>Make Wizard (Requires Ghosts)</a><br>
 		<a href='?src=[REF(src)];[HrefToken()];makeAntag=nukeops'>Make Nuke Team (Requires Ghosts)</a><br>
@@ -41,7 +40,7 @@
 		return FALSE
 	if(!considered_alive(applicant.mind) || considered_afk(applicant.mind)) //makes sure the player isn't a zombie, brain, or just afk all together
 		return FALSE
-	return (!jobban_isbanned(applicant, targetrole) && !jobban_isbanned(applicant, ROLE_SYNDICATE))
+	return !is_banned_from(applicant.ckey, list(targetrole, ROLE_SYNDICATE))
 
 
 /datum/admins/proc/makeTraitors()
@@ -57,7 +56,7 @@
 	var/mob/living/carbon/human/H = null
 
 	for(var/mob/living/carbon/human/applicant in GLOB.player_list)
-		if(isReadytoRumble(applicant, ROLE_TRAITOR, FALSE))
+		if(isReadytoRumble(applicant, ROLE_TRAITOR))
 			if(temp.age_check(applicant.client))
 				if(!(applicant.job in temp.restricted_jobs))
 					candidates += applicant
@@ -70,13 +69,13 @@
 			H.mind.make_Traitor()
 			candidates.Remove(H)
 
-		return 1
+		return TRUE
 
 
-	return 0
+	return FALSE
 
 
-/datum/admins/proc/makeChanglings()
+/datum/admins/proc/makeChangelings()
 
 	var/datum/game_mode/changeling/temp = new
 	if(CONFIG_GET(flag/protect_roles_from_antagonist))
@@ -95,16 +94,16 @@
 					candidates += applicant
 
 	if(candidates.len)
-		var/numChanglings = min(candidates.len, 3)
+		var/numChangelings = min(candidates.len, 3)
 
-		for(var/i = 0, i<numChanglings, i++)
+		for(var/i = 0, i<numChangelings, i++)
 			H = pick(candidates)
-			H.mind.make_Changling()
+			H.mind.make_Changeling()
 			candidates.Remove(H)
 
-		return 1
+		return TRUE
 
-	return 0
+	return FALSE
 
 /datum/admins/proc/makeRevs()
 
@@ -131,9 +130,9 @@
 			H = pick(candidates)
 			H.mind.make_Rev()
 			candidates.Remove(H)
-		return 1
+		return TRUE
 
-	return 0
+	return FALSE
 
 /datum/admins/proc/makeWizard()
 
@@ -171,44 +170,9 @@
 			H.mind.make_Cultist()
 			candidates.Remove(H)
 
-		return 1
+		return TRUE
 
-	return 0
-
-
-/datum/admins/proc/makeClockCult()
-	var/datum/game_mode/clockwork_cult/temp = new
-	if(CONFIG_GET(flag/protect_roles_from_antagonist))
-		temp.restricted_jobs += temp.protected_jobs
-
-	if(CONFIG_GET(flag/protect_assistant_from_antagonist))
-		temp.restricted_jobs += "Assistant"
-
-	var/list/mob/living/carbon/human/candidates = list()
-	var/mob/living/carbon/human/H = null
-
-	for(var/mob/living/carbon/human/applicant in GLOB.player_list)
-		if(isReadytoRumble(applicant, ROLE_SERVANT_OF_RATVAR))
-			if(temp.age_check(applicant.client))
-				if(!(applicant.job in temp.restricted_jobs))
-					candidates += applicant
-
-	if(candidates.len)
-		var/numCultists = min(candidates.len, 4)
-
-		for(var/i = 0, i<numCultists, i++)
-			H = pick(candidates)
-			to_chat(H, "<span class='heavy_brass'>The world before you suddenly glows a brilliant yellow. You hear the whooshing steam and clanking cogs of a billion billion machines, and all at once \
-			you see the truth. Ratvar, the Clockwork Justiciar, lies derelict and forgotten in an unseen realm, and he has selected you as one of his harbringers. You are now a servant of \
-			Ratvar, and you will bring him back.</span>")
-			H.playsound_local(get_turf(H), 'sound/ambience/antag/clockcultalr.ogg', 100, FALSE, pressure_affected = FALSE)
-			add_servant_of_ratvar(H, TRUE)
-			SSticker.mode.equip_servant(H)
-			candidates.Remove(H)
-
-		return 1
-
-	return 0
+	return FALSE
 
 
 
@@ -236,7 +200,7 @@
 				break
 		//Making sure we have atleast 3 Nuke agents, because less than that is kinda bad
 		if(agentcount < 3)
-			return 0
+			return FALSE
 
 		//Let's find the spawn locations
 		var/leader_chosen = FALSE
@@ -249,9 +213,9 @@
 				nuke_team = N.nuke_team
 			else
 				new_character.mind.add_antag_datum(/datum/antagonist/nukeop,nuke_team)
-		return 1
+		return TRUE
 	else
-		return 0
+		return FALSE
 
 
 
@@ -290,13 +254,13 @@
 
 
 /datum/admins/proc/equipAntagOnDummy(mob/living/carbon/human/dummy/mannequin, datum/antagonist/antag)
-	for(var/I in mannequin.get_equipped_items())
+	for(var/I in mannequin.get_equipped_items(TRUE))
 		qdel(I)
 	if (ispath(antag, /datum/antagonist/ert))
 		var/datum/antagonist/ert/ert = antag
 		mannequin.equipOutfit(initial(ert.outfit), TRUE)
 	else if (ispath(antag, /datum/antagonist/official))
-		mannequin.equipOutfit(/datum/outfit/centcom_official, TRUE)
+		mannequin.equipOutfit(/datum/outfit/centcom/centcom_official, TRUE)
 
 /datum/admins/proc/makeERTPreviewIcon(list/settings)
 	// Set up the dummy for its photoshoot
@@ -339,7 +303,7 @@
 	unset_busy_human_dummy(DUMMY_HUMAN_SLOT_ADMIN)
 	return preview_icon
 
-/datum/admins/proc/makeEmergencyresponseteam(var/datum/ert/ertemplate = null)
+/datum/admins/proc/makeEmergencyresponseteam(datum/ert/ertemplate = null)
 	if (ertemplate)
 		ertemplate = new ertemplate
 	else
@@ -351,7 +315,7 @@
 		"template" = list("desc" = "Template", "callback" = CALLBACK(src, .proc/makeERTTemplateModified), "type" = "datum", "path" = "/datum/ert", "subtypesonly" = TRUE, "value" = ertemplate.type),
 		"teamsize" = list("desc" = "Team Size", "type" = "number", "value" = ertemplate.teamsize),
 		"mission" = list("desc" = "Mission", "type" = "string", "value" = ertemplate.mission),
-		"polldesc" = list("desc" = "Ghost poll description", "string" = "text", "value" = ertemplate.polldesc),
+		"polldesc" = list("desc" = "Ghost poll description", "type" = "string", "value" = ertemplate.polldesc),
 		"enforce_human" = list("desc" = "Enforce human authority", "type" = "boolean", "value" = "[(CONFIG_GET(flag/enforce_human_authority) ? "Yes" : "No")]"),
 		"open_armory" = list("desc" = "Open armory doors", "type" = "boolean", "value" = "[(ertemplate.opendoors ? "Yes" : "No")]"),
 		)
@@ -378,7 +342,7 @@
 		ertemplate.enforce_human = prefs["enforce_human"]["value"] == "Yes" ? TRUE : FALSE
 		ertemplate.opendoors = prefs["open_armory"]["value"] == "Yes" ? TRUE : FALSE
 
-		var/list/mob/dead/observer/candidates = pollGhostCandidates("Do you wish to be considered for [ertemplate.polldesc] ?", "deathsquad", null)
+		var/list/mob/dead/observer/candidates = pollGhostCandidates("Do you wish to be considered for [ertemplate.polldesc]?", "deathsquad", null)
 		var/teamSpawned = FALSE
 
 		if(candidates.len > 0)
@@ -399,11 +363,11 @@
 			ert_team.mission = missionobj
 
 			var/list/spawnpoints = GLOB.emergencyresponseteamspawn
+			var/index = 0
 			while(numagents && candidates.len)
-				if (numagents > spawnpoints.len)
-					numagents--
-					continue // This guy's unlucky, not enough spawn points, we skip him.
-				var/spawnloc = spawnpoints[numagents]
+				var/spawnloc = spawnpoints[index+1]
+				//loop through spawnpoints one at a time
+				index = (index + 1) % spawnpoints.len
 				var/mob/dead/observer/chosen_candidate = pick(candidates)
 				candidates -= chosen_candidate
 				if(!chosen_candidate.key)
@@ -414,7 +378,7 @@
 				chosen_candidate.client.prefs.copy_to(ERTOperative)
 				ERTOperative.key = chosen_candidate.key
 
-				if(ertemplate.enforce_human || ERTOperative.dna.species.dangerous_existence) // Don't want any exploding plasmemes
+				if(ertemplate.enforce_human || !ERTOperative.dna.species.changesource_flags & ERT_SPAWN) // Don't want any exploding plasmemes
 					ERTOperative.set_species(/datum/species/human)
 
 				//Give antag datum

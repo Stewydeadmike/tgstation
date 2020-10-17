@@ -1,13 +1,12 @@
-/*
-Acts like a normal vent, but has an input AND output.
-*/
+//Acts like a normal vent, but has an input AND output.
+
 #define EXT_BOUND	1
 #define INPUT_MIN	2
 #define OUTPUT_MAX	4
 
 /obj/machinery/atmospherics/components/binary/dp_vent_pump
 	icon = 'icons/obj/atmospherics/components/unary_devices.dmi' //We reuse the normal vent icons!
-	icon_state = "dpvent_map"
+	icon_state = "dpvent_map-3"
 
 	//node2 is output port
 	//node1 is input port
@@ -15,12 +14,12 @@ Acts like a normal vent, but has an input AND output.
 	name = "dual-port air vent"
 	desc = "Has a valve and pump attached to it. There are two ports."
 
-	level = 1
+	hide = TRUE
+
 	var/frequency = 0
 	var/id = null
 	var/datum/radio_frequency/radio_connection
 
-	var/on = FALSE
 	var/pump_direction = 1 //0 = siphoning, 1 = releasing
 
 	var/external_pressure_bound = ONE_ATMOSPHERE
@@ -28,45 +27,25 @@ Acts like a normal vent, but has an input AND output.
 	var/output_pressure_max = 0
 
 	var/pressure_checks = EXT_BOUND
+
 	//EXT_BOUND: Do not pass external_pressure_bound
 	//INPUT_MIN: Do not pass input_pressure_min
 	//OUTPUT_MAX: Do not pass output_pressure_max
-
-/obj/machinery/atmospherics/components/binary/dp_vent_pump/on
-	on = TRUE
-	icon_state = "dpvent_map_on"
 
 /obj/machinery/atmospherics/components/binary/dp_vent_pump/Destroy()
 	SSradio.remove_object(src, frequency)
 	return ..()
 
-/obj/machinery/atmospherics/components/binary/dp_vent_pump/high_volume
-	name = "large dual-port air vent"
-
-/obj/machinery/atmospherics/components/binary/dp_vent_pump/high_volume/on
-	on = TRUE
-	icon_state = "dpvent_map_on"
-
-/obj/machinery/atmospherics/components/binary/dp_vent_pump/high_volume/New()
-	..()
-	var/datum/gas_mixture/air1 = airs[1]
-	var/datum/gas_mixture/air2 = airs[2]
-	air1.volume = 1000
-	air2.volume = 1000
-
 /obj/machinery/atmospherics/components/binary/dp_vent_pump/update_icon_nopipes()
 	cut_overlays()
 	if(showpipe)
-		add_overlay(getpipeimage('icons/obj/atmospherics/components/unary_devices.dmi', "dpvent_cap"))
+		var/image/cap = getpipeimage(icon, "dpvent_cap", dir, piping_layer = piping_layer)
+		add_overlay(cap)
 
-	if(!on || !is_operational())
+	if(!on || !is_operational)
 		icon_state = "vent_off"
-		return
-
-	if(pump_direction)
-		icon_state = "vent_out"
 	else
-		icon_state = "vent_in"
+		icon_state = pump_direction ? "vent_out" : "vent_in"
 
 /obj/machinery/atmospherics/components/binary/dp_vent_pump/process_atmos()
 	..()
@@ -176,26 +155,87 @@ Acts like a normal vent, but has an input AND output.
 		pressure_checks &= ~1
 		pump_direction = 0
 
-	if("stabalize" in signal.data)
+	if("stabilize" in signal.data)
 		pressure_checks |= 1
 		pump_direction = 1
 
 	if("set_input_pressure" in signal.data)
-		input_pressure_min = CLAMP(text2num(signal.data["set_input_pressure"]),0,ONE_ATMOSPHERE*50)
+		input_pressure_min = clamp(text2num(signal.data["set_input_pressure"]),0,ONE_ATMOSPHERE*50)
 
 	if("set_output_pressure" in signal.data)
-		output_pressure_max = CLAMP(text2num(signal.data["set_output_pressure"]),0,ONE_ATMOSPHERE*50)
+		output_pressure_max = clamp(text2num(signal.data["set_output_pressure"]),0,ONE_ATMOSPHERE*50)
 
 	if("set_external_pressure" in signal.data)
-		external_pressure_bound = CLAMP(text2num(signal.data["set_external_pressure"]),0,ONE_ATMOSPHERE*50)
+		external_pressure_bound = clamp(text2num(signal.data["set_external_pressure"]),0,ONE_ATMOSPHERE*50)
 
-	if("status" in signal.data)
-		spawn(2)
-			broadcast_status()
-		return //do not update_icon
-	spawn(2)
-		broadcast_status()
-	update_icon()
+	addtimer(CALLBACK(src, .proc/broadcast_status), 2)
+
+	if(!("status" in signal.data)) //do not update_icon
+		update_icon()
+
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/high_volume
+	name = "large dual-port air vent"
+
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/high_volume/New()
+	..()
+	var/datum/gas_mixture/air1 = airs[1]
+	var/datum/gas_mixture/air2 = airs[2]
+	air1.volume = 1000
+	air2.volume = 1000
+
+// Mapping
+
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/layer2
+	piping_layer = 2
+	icon_state = "dpvent_map-2"
+
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/layer4
+	piping_layer = 4
+	icon_state = "dpvent_map-4"
+
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/on
+	on = TRUE
+	icon_state = "dpvent_map_on-3"
+
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/on/layer2
+	piping_layer = 2
+	icon_state = "dpvent_map_on-2"
+
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/on/layer4
+	piping_layer = 4
+	icon_state = "dpvent_map_on-4"
+
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/high_volume/incinerator_toxmix
+	id = INCINERATOR_TOXMIX_DP_VENTPUMP
+	frequency = FREQ_AIRLOCK_CONTROL
+
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/high_volume/incinerator_atmos
+	id = INCINERATOR_ATMOS_DP_VENTPUMP
+	frequency = FREQ_AIRLOCK_CONTROL
+
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/high_volume/incinerator_syndicatelava
+	id = INCINERATOR_SYNDICATELAVA_DP_VENTPUMP
+	frequency = FREQ_AIRLOCK_CONTROL
+
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/high_volume/layer2
+	piping_layer = 2
+	icon_state = "dpvent_map-2"
+
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/high_volume/layer4
+	piping_layer = 4
+	icon_state = "dpvent_map-4"
+
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/high_volume/on
+	on = TRUE
+	icon_state = "dpvent_map_on-3"
+
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/high_volume/on/layer2
+	piping_layer = 2
+	icon_state = "dpvent_map_on-2"
+
+/obj/machinery/atmospherics/components/binary/dp_vent_pump/high_volume/on/layer4
+	piping_layer = 4
+	icon_state = "dpvent_map_on-4"
 
 #undef EXT_BOUND
 #undef INPUT_MIN

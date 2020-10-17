@@ -1,5 +1,3 @@
-// Various tools and handheld engineering devices.
-
 /datum/export/toolbox
 	cost = 4
 	unit_name = "toolbox"
@@ -34,7 +32,6 @@
 	export_types = list(/obj/item/wirecutters)
 
 
-// Welding tools
 /datum/export/weldingtool
 	cost = 5
 	unit_name = "welding tool"
@@ -52,7 +49,6 @@
 	export_types = list(/obj/item/weldingtool/largetank, /obj/item/weldingtool/hugetank)
 
 
-// Fire extinguishers
 /datum/export/extinguisher
 	cost = 15
 	unit_name = "fire extinguisher"
@@ -65,55 +61,98 @@
 	export_types = list(/obj/item/extinguisher/mini)
 
 
-// Flashlights
 /datum/export/flashlight
 	cost = 5
 	unit_name = "flashlight"
-	export_types = list(/obj/item/device/flashlight)
+	export_types = list(/obj/item/flashlight)
 	include_subtypes = FALSE
 
 /datum/export/flashlight/flare
 	cost = 2
 	unit_name = "flare"
-	export_types = list(/obj/item/device/flashlight/flare)
+	export_types = list(/obj/item/flashlight/flare)
 
 /datum/export/flashlight/seclite
 	cost = 10
 	unit_name = "seclite"
-	export_types = list(/obj/item/device/flashlight/seclite)
+	export_types = list(/obj/item/flashlight/seclite)
 
 
-// Analyzers and Scanners
 /datum/export/analyzer
 	cost = 5
 	unit_name = "analyzer"
-	export_types = list(/obj/item/device/analyzer)
+	export_types = list(/obj/item/analyzer)
 
 /datum/export/analyzer/t_scanner
 	cost = 10
 	unit_name = "t-ray scanner"
-	export_types = list(/obj/item/device/t_scanner)
+	export_types = list(/obj/item/t_scanner)
 
 
 /datum/export/radio
 	cost = 5
 	unit_name = "radio"
-	export_types = list(/obj/item/device/radio)
-	exclude_types = list(/obj/item/device/radio/mech)
+	export_types = list(/obj/item/radio)
+	exclude_types = list(/obj/item/radio/mech)
 
+//Advanced/Power Tools.
+/datum/export/weldingtool/experimental
+	cost = 90
+	unit_name = "experimental welding tool"
+	export_types = list(/obj/item/weldingtool/experimental)
 
-// High-tech tools.
+/datum/export/jawsoflife
+	cost = 100
+	unit_name = "jaws of life"
+	export_types = list(/obj/item/crowbar/power)
+
+/datum/export/handdrill
+	cost = 100
+	unit_name = "hand drill"
+	export_types = list(/obj/item/screwdriver/power)
+
+/datum/export/rld_mini
+	cost = 150
+	unit_name = "mini rapid lighting device"
+	export_types = list(/obj/item/construction/rld/mini)
+
+/datum/export/rsf
+	cost = 100
+	unit_name = "rapid service fabricator"
+	export_types = list(/obj/item/rsf)
+
 /datum/export/rcd
-	cost = 100 // 15 metal -> 75 credits, +25 credits for production
+	cost = 100
 	unit_name = "rapid construction device"
 	export_types = list(/obj/item/construction/rcd)
 
 /datum/export/rcd_ammo
-	cost = 60 // 6 metal, 4 glass -> 50 credits, +10 credits
+	cost = 60
 	unit_name = "compressed matter cardridge"
 	export_types = list(/obj/item/rcd_ammo)
 
 /datum/export/rpd
-	cost = 350 // 37.5 metal, 18.75 glass -> 281.25 credits, + some
-	unit_name = "rapid piping device"
+	cost = 100
+	unit_name = "rapid pipe dispenser"
 	export_types = list(/obj/item/pipe_dispenser)
+
+//artisanal exports for the mom and pops
+/datum/export/soap
+	cost = 75
+	unit_name = "soap"
+	export_types = list(/obj/item/soap)
+
+/datum/export/soap/homemade
+	cost = 30
+	unit_name = "artisanal soap"
+	export_types = list(/obj/item/soap/homemade)
+
+/datum/export/soap/omega
+	cost = 7000
+	unit_name = "omega soap"
+	export_types = list(/obj/item/soap/omega)
+
+/datum/export/candle
+	cost = 25
+	unit_name = "candle"
+	export_types = list(/obj/item/candle)

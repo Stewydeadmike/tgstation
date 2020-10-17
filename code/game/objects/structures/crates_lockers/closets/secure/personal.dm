@@ -12,7 +12,7 @@
 		new /obj/item/storage/backpack(src)
 	else
 		new /obj/item/storage/backpack/satchel(src)
-	new /obj/item/device/radio/headset( src )
+	new /obj/item/radio/headset( src )
 
 /obj/structure/closet/secure_closet/personal/patient
 	name = "patient's closet"
@@ -25,11 +25,15 @@
 	icon_state = "cabinet"
 	resistance_flags = FLAMMABLE
 	max_integrity = 70
+	open_sound = 'sound/machines/wooden_closet_open.ogg'
+	close_sound = 'sound/machines/wooden_closet_close.ogg'
+	open_sound_volume = 25
+	close_sound_volume = 50
 
 /obj/structure/closet/secure_closet/personal/cabinet/PopulateContents()
 	new /obj/item/storage/backpack/satchel/leather/withwallet( src )
-	new /obj/item/device/instrument/piano_synth(src)
-	new /obj/item/device/radio/headset( src )
+	new /obj/item/instrument/piano_synth(src)
+	new /obj/item/radio/headset( src )
 
 /obj/structure/closet/secure_closet/personal/attackby(obj/item/W, mob/user, params)
 	var/obj/item/card/id/I = W.GetID()

@@ -1,13 +1,17 @@
- /**
-  * tgui state: default_state
-  *
-  * Checks a number of things -- mostly physical distance for humans and view for robots.
- **/
+/**
+ * tgui state: default_state
+ *
+ * Checks a number of things -- mostly physical distance for humans
+ * and view for robots.
+ *
+ * Copyright (c) 2020 Aleksej Komarov
+ * SPDX-License-Identifier: MIT
+ */
 
 GLOBAL_DATUM_INIT(default_state, /datum/ui_state/default, new)
 
 /datum/ui_state/default/can_use_topic(src_object, mob/user)
-	return user.default_can_use_topic(src_object) // Call the individual mob-overriden procs.
+	return user.default_can_use_topic(src_object) // Call the individual mob-overridden procs.
 
 /mob/proc/default_can_use_topic(src_object)
 	return UI_CLOSE // Don't allow interaction by default.

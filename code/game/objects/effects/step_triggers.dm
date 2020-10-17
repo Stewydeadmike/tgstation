@@ -52,19 +52,17 @@
 	var/list/affecting = list()
 
 /obj/effect/step_trigger/thrower/Trigger(atom/A)
-	if(!A || !ismovableatom(A))
+	if(!A || !ismovable(A))
 		return
 	var/atom/movable/AM = A
 	var/curtiles = 0
-	var/stopthrow = 0
+	var/stopthrow = FALSE
 	for(var/obj/effect/step_trigger/thrower/T in orange(2, src))
 		if(AM in T.affecting)
 			return
 
-	if(ismob(AM))
-		var/mob/M = AM
-		if(immobilize)
-			M.canmove = 0
+	if(immobilize)
+		ADD_TRAIT(AM, TRAIT_IMMOBILIZED, src)
 
 	affecting.Add(AM)
 	while(AM && !stopthrow)
@@ -82,11 +80,11 @@
 		if(!nostop)
 			for(var/obj/effect/step_trigger/T in get_step(AM, direction))
 				if(T.stopper && T != src)
-					stopthrow = 1
+					stopthrow = TRUE
 		else
 			for(var/obj/effect/step_trigger/teleporter/T in get_step(AM, direction))
 				if(T.stopper)
-					stopthrow = 1
+					stopthrow = TRUE
 
 		if(AM)
 			var/predir = AM.dir
@@ -98,10 +96,8 @@
 
 	affecting.Remove(AM)
 
-	if(ismob(AM))
-		var/mob/M = AM
-		if(immobilize)
-			M.canmove = 1
+	REMOVE_TRAIT(AM, TRAIT_IMMOBILIZED, src)
+
 
 /* Stops things thrown by a thrower, doesn't do anything */
 

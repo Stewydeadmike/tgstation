@@ -1,43 +1,45 @@
-/obj/item/device/laser_pointer
+/obj/item/laser_pointer
 	name = "laser pointer"
 	desc = "Don't shine it in your eyes!"
 	icon = 'icons/obj/device.dmi'
 	icon_state = "pointer"
-	item_state = "pen"
+	inhand_icon_state = "pen"
+	worn_icon_state = "pen"
 	var/pointer_icon_state
-	flags_1 = CONDUCT_1 | NOBLUDGEON_1
-	slot_flags = SLOT_BELT
-	materials = list(MAT_METAL=500, MAT_GLASS=500)
+	flags_1 = CONDUCT_1
+	item_flags = NOBLUDGEON
+	slot_flags = ITEM_SLOT_BELT
+	custom_materials = list(/datum/material/iron=500, /datum/material/glass=500)
 	w_class = WEIGHT_CLASS_SMALL
 	var/turf/pointer_loc
-	var/energy = 5
-	var/max_energy = 5
-	var/effectchance = 33
-	var/recharging = 0
+	var/energy = 10
+	var/max_energy = 10
+	var/effectchance = 30
+	var/recharging = FALSE
 	var/recharge_locked = FALSE
 	var/obj/item/stock_parts/micro_laser/diode //used for upgrading!
 
 
-/obj/item/device/laser_pointer/red
+/obj/item/laser_pointer/red
 	pointer_icon_state = "red_laser"
-/obj/item/device/laser_pointer/green
+/obj/item/laser_pointer/green
 	pointer_icon_state = "green_laser"
-/obj/item/device/laser_pointer/blue
+/obj/item/laser_pointer/blue
 	pointer_icon_state = "blue_laser"
-/obj/item/device/laser_pointer/purple
+/obj/item/laser_pointer/purple
 	pointer_icon_state = "purple_laser"
 
-/obj/item/device/laser_pointer/New()
-	..()
+/obj/item/laser_pointer/Initialize()
+	. = ..()
 	diode = new(src)
 	if(!pointer_icon_state)
 		pointer_icon_state = pick("red_laser","green_laser","blue_laser","purple_laser")
 
-/obj/item/device/laser_pointer/upgraded/New()
-	..()
+/obj/item/laser_pointer/upgraded/Initialize()
+	. = ..()
 	diode = new /obj/item/stock_parts/micro_laser/ultra
 
-/obj/item/device/laser_pointer/attackby(obj/item/W, mob/user, params)
+/obj/item/laser_pointer/attackby(obj/item/W, mob/user, params)
 	if(istype(W, /obj/item/stock_parts/micro_laser))
 		if(!diode)
 			if(!user.transferItemToLoc(W, src))
@@ -45,9 +47,9 @@
 			diode = W
 			to_chat(user, "<span class='notice'>You install a [diode.name] in [src].</span>")
 		else
-			to_chat(user, "<span class='notice'>[src] already has a diode installed.</span>")
+			to_chat(user, "<span class='warning'>[src] already has a diode installed!</span>")
 
-	else if(istype(W, /obj/item/screwdriver))
+	else if(W.tool_behaviour == TOOL_SCREWDRIVER)
 		if(diode)
 			to_chat(user, "<span class='notice'>You remove the [diode.name] from \the [src].</span>")
 			diode.forceMove(drop_location())
@@ -55,10 +57,19 @@
 	else
 		return ..()
 
-/obj/item/device/laser_pointer/afterattack(atom/target, mob/living/user, flag, params)
+/obj/item/laser_pointer/examine(mob/user)
+	. = ..()
+	if(in_range(user, src) || isobserver(user))
+		if(!diode)
+			. += "<span class='notice'>The diode is missing.</span>"
+		else
+			. += "<span class='notice'>A class <b>[diode.rating]</b> laser diode is installed. It is <i>screwed</i> in place.</span>"
+
+/obj/item/laser_pointer/afterattack(atom/target, mob/living/user, flag, params)
+	. = ..()
 	laser_act(target, user, params)
 
-/obj/item/device/laser_pointer/proc/laser_act(atom/target, mob/living/user, params)
+/obj/item/laser_pointer/proc/laser_act(atom/target, mob/living/user, params)
 	if( !(user in (viewers(7,target))) )
 		return
 	if (!diode)
@@ -67,15 +78,9 @@
 	if (!user.IsAdvancedToolUser())
 		to_chat(user, "<span class='warning'>You don't have the dexterity to do this!</span>")
 		return
-	if(user.has_trait(TRAIT_NOGUNS))
+	if(HAS_TRAIT(user, TRAIT_CHUNKYFINGERS))
 		to_chat(user, "<span class='warning'>Your fingers can't press the button!</span>")
 		return
-	if(ishuman(user))
-		var/mob/living/carbon/human/H = user
-		if(H.dna.check_mutation(HULK))
-			to_chat(user, "<span class='warning'>Your fingers can't press the button!</span>")
-			return
-
 	add_fingerprint(user)
 
 	//nothing happens if the battery is drained
@@ -90,7 +95,6 @@
 	if(iscarbon(target))
 		var/mob/living/carbon/C = target
 		if(user.zone_selected == BODY_ZONE_PRECISE_EYES)
-			add_logs(user, C, "shone in the eyes", src)
 
 			var/severity = 1
 			if(prob(33))
@@ -100,22 +104,24 @@
 
 			//chance to actually hit the eyes depends on internal component
 			if(prob(effectchance * diode.rating) && C.flash_act(severity))
-				outmsg = "<span class='notice'>You blind [C] by shining [src] in their eyes.</span>"
+				outmsg = "<span class='notice'>You blind [C] by shining [src] in [C.p_their()] eyes.</span>"
+				log_combat(user, C, "blinded with a laser pointer",src)
 			else
-				outmsg = "<span class='warning'>You fail to blind [C] by shining [src] at their eyes!</span>"
+				outmsg = "<span class='warning'>You fail to blind [C] by shining [src] at [C.p_their()] eyes!</span>"
+				log_combat(user, C, "attempted to blind with a laser pointer",src)
 
 	//robots
 	else if(iscyborg(target))
 		var/mob/living/silicon/S = target
-		add_logs(user, S, "shone in the sensors", src)
+		log_combat(user, S, "shone in the sensors", src)
 		//chance to actually hit the eyes depends on internal component
 		if(prob(effectchance * diode.rating))
 			S.flash_act(affect_silicon = 1)
-			S.Knockdown(rand(100,200))
+			S.Paralyze(rand(100,200))
 			to_chat(S, "<span class='danger'>Your sensors were overloaded by a laser!</span>")
-			outmsg = "<span class='notice'>You overload [S] by shining [src] at their sensors.</span>"
+			outmsg = "<span class='notice'>You overload [S] by shining [src] at [S.p_their()] sensors.</span>"
 		else
-			outmsg = "<span class='warning'>You fail to overload [S] by shining [src] at their sensors!</span>"
+			outmsg = "<span class='warning'>You fail to overload [S] by shining [src] at [S.p_their()] sensors!</span>"
 
 	//cameras
 	else if(istype(target, /obj/machinery/camera))
@@ -123,32 +129,33 @@
 		if(prob(effectchance * diode.rating))
 			C.emp_act(EMP_HEAVY)
 			outmsg = "<span class='notice'>You hit the lens of [C] with [src], temporarily disabling the camera!</span>"
-			add_logs(user, C, "EMPed", src)
+			log_combat(user, C, "EMPed", src)
 		else
 			outmsg = "<span class='warning'>You miss the lens of [C] with [src]!</span>"
 
 	//catpeople
 	for(var/mob/living/carbon/human/H in view(1,targloc))
-		if(!iscatperson(H) || H.incapacitated() || H.eye_blind )
+		if(!isfelinid(H) || H.incapacitated() || H.is_blind())
 			continue
-		if(!H.lying)
+		if(user.body_position == STANDING_UP)
 			H.setDir(get_dir(H,targloc)) // kitty always looks at the light
-			if(prob(effectchance))
+			if(prob(effectchance * diode.rating))
 				H.visible_message("<span class='warning'>[H] makes a grab for the light!</span>","<span class='userdanger'>LIGHT!</span>")
 				H.Move(targloc)
-				add_logs(user, H, "moved with a laser pointer",src)
+				log_combat(user, H, "moved with a laser pointer",src)
 			else
-				H.visible_message("<span class='notice'>[H] looks briefly distracted by the light.</span>","<span class = 'warning'> You're briefly tempted by the shiny light... </span>")
+				H.visible_message("<span class='notice'>[H] looks briefly distracted by the light.</span>", "<span class='warning'>You're briefly tempted by the shiny light...</span>")
 		else
-			H.visible_message("<span class='notice'>[H] stares at the light</span>","<span class = 'warning'> You stare at the light... </span>")
+			H.visible_message("<span class='notice'>[H] stares at the light.</span>", "<span class='warning'>You stare at the light...</span>")
 
 	//cats!
 	for(var/mob/living/simple_animal/pet/cat/C in view(1,targloc))
-		if(prob(50))
+		if(prob(effectchance * diode.rating))
+			if(C.resting)
+				C.set_resting(FALSE, instant = TRUE)
 			C.visible_message("<span class='notice'>[C] pounces on the light!</span>","<span class='warning'>LIGHT!</span>")
 			C.Move(targloc)
-			C.resting = TRUE
-			C.update_canmove()
+			C.Immobilize(1 SECONDS)
 		else
 			C.visible_message("<span class='notice'>[C] looks uninterested in your games.</span>","<span class='warning'>You spot [user] shining [src] at you. How insulting!</span>")
 
@@ -173,7 +180,7 @@
 	energy -= 1
 	if(energy <= max_energy)
 		if(!recharging)
-			recharging = 1
+			recharging = TRUE
 			START_PROCESSING(SSobj, src)
 		if(energy <= 0)
 			to_chat(user, "<span class='warning'>[src]'s battery is overused, it needs time to recharge!</span>")
@@ -182,11 +189,14 @@
 	flick_overlay_view(I, targloc, 10)
 	icon_state = "pointer"
 
-/obj/item/device/laser_pointer/process()
-	if(prob(20 - recharge_locked*5))
+/obj/item/laser_pointer/process(delta_time)
+	if(!diode)
+		recharging = FALSE
+		return PROCESS_KILL
+	if(DT_PROB(10 + diode.rating*10 - recharge_locked*1, delta_time)) //t1 is 20, 2 40
 		energy += 1
 		if(energy >= max_energy)
 			energy = max_energy
-			recharging = 0
+			recharging = FALSE
 			recharge_locked = FALSE
-			..()
+			return ..()

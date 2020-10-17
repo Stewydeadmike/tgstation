@@ -5,7 +5,7 @@
   Note that walkie-talkie, intercoms and headsets handle transmission using nonstandard way.
   procs:
 
-    add_object(obj/device as obj, var/new_frequency as num, var/filter as text|null = null)
+    add_object(obj/device as obj, new_frequency as num, filter as text|null = null)
       Adds listening object.
       parameters:
         device - device receiving signals, must have proc receive_signal (see description below).
@@ -30,7 +30,7 @@
   radio_frequency is a global object maintaining list of devices that listening specific frequency.
   procs:
 
-    post_signal(obj/source as obj|null, datum/signal/signal, var/filter as text|null = null, var/range as num|null = null)
+    post_signal(obj/source as obj|null, datum/signal/signal, filter as text|null = null, range as num|null = null)
       Sends signal to all devices that wants such signal.
       parameters:
         source - object, emitted signal. Usually, devices will not receive their own signals.
@@ -38,7 +38,7 @@
         filter - described above.
         range - radius of regular byond's square circle on that z-level. null means everywhere, on all z-levels.
 
-  obj/proc/receive_signal(datum/signal/signal, var/receive_method as num, var/receive_param)
+  obj/proc/receive_signal(datum/signal/signal, receive_method as num, receive_param)
     Handler from received signals. By default does nothing. Define your own for your object.
     Avoid of sending signals directly from this proc, use spawn(0). Do not use sleep() here please.
       parameters:
@@ -91,35 +91,35 @@ GLOBAL_LIST_EMPTY(all_radios)
 // use in maps, such as in intercoms.
 
 GLOBAL_LIST_INIT(radiochannels, list(
-	"Common" = FREQ_COMMON,
-	"Science" = FREQ_SCIENCE,
-	"Command" = FREQ_COMMAND,
-	"Medical" = FREQ_MEDICAL,
-	"Engineering" = FREQ_ENGINEERING,
-	"Security" = FREQ_SECURITY,
-	"CentCom" = FREQ_CENTCOM,
-	"Syndicate" = FREQ_SYNDICATE,
-	"Supply" = FREQ_SUPPLY,
-	"Service" = FREQ_SERVICE,
-	"AI Private" = FREQ_AI_PRIVATE,
-	"Red Team" = FREQ_CTF_RED,
-	"Blue Team" = FREQ_CTF_BLUE
+	RADIO_CHANNEL_COMMON = FREQ_COMMON,
+	RADIO_CHANNEL_SCIENCE = FREQ_SCIENCE,
+	RADIO_CHANNEL_COMMAND = FREQ_COMMAND,
+	RADIO_CHANNEL_MEDICAL = FREQ_MEDICAL,
+	RADIO_CHANNEL_ENGINEERING = FREQ_ENGINEERING,
+	RADIO_CHANNEL_SECURITY = FREQ_SECURITY,
+	RADIO_CHANNEL_CENTCOM = FREQ_CENTCOM,
+	RADIO_CHANNEL_SYNDICATE = FREQ_SYNDICATE,
+	RADIO_CHANNEL_SUPPLY = FREQ_SUPPLY,
+	RADIO_CHANNEL_SERVICE = FREQ_SERVICE,
+	RADIO_CHANNEL_AI_PRIVATE = FREQ_AI_PRIVATE,
+	RADIO_CHANNEL_CTF_RED = FREQ_CTF_RED,
+	RADIO_CHANNEL_CTF_BLUE = FREQ_CTF_BLUE
 ))
 
 GLOBAL_LIST_INIT(reverseradiochannels, list(
-	"[FREQ_COMMON]" = "Common",
-	"[FREQ_SCIENCE]" = "Science",
-	"[FREQ_COMMAND]" = "Command",
-	"[FREQ_MEDICAL]" = "Medical",
-	"[FREQ_ENGINEERING]" = "Engineering",
-	"[FREQ_SECURITY]" = "Security",
-	"[FREQ_CENTCOM]" = "CentCom",
-	"[FREQ_SYNDICATE]" = "Syndicate",
-	"[FREQ_SUPPLY]" = "Supply",
-	"[FREQ_SERVICE]" = "Service",
-	"[FREQ_AI_PRIVATE]" = "AI Private",
-	"[FREQ_CTF_RED]" = "Red Team",
-	"[FREQ_CTF_BLUE]" = "Blue Team"
+	"[FREQ_COMMON]" = RADIO_CHANNEL_COMMON,
+	"[FREQ_SCIENCE]" = RADIO_CHANNEL_SCIENCE,
+	"[FREQ_COMMAND]" = RADIO_CHANNEL_COMMAND,
+	"[FREQ_MEDICAL]" = RADIO_CHANNEL_MEDICAL,
+	"[FREQ_ENGINEERING]" = RADIO_CHANNEL_ENGINEERING,
+	"[FREQ_SECURITY]" = RADIO_CHANNEL_SECURITY,
+	"[FREQ_CENTCOM]" = RADIO_CHANNEL_CENTCOM,
+	"[FREQ_SYNDICATE]" = RADIO_CHANNEL_SYNDICATE,
+	"[FREQ_SUPPLY]" = RADIO_CHANNEL_SUPPLY,
+	"[FREQ_SERVICE]" = RADIO_CHANNEL_SERVICE,
+	"[FREQ_AI_PRIVATE]" = RADIO_CHANNEL_AI_PRIVATE,
+	"[FREQ_CTF_RED]" = RADIO_CHANNEL_CTF_RED,
+	"[FREQ_CTF_BLUE]" = RADIO_CHANNEL_CTF_BLUE
 ))
 
 /datum/radio_frequency
@@ -150,7 +150,7 @@ GLOBAL_LIST_INIT(reverseradiochannels, list(
 	if(range)
 		start_point = get_turf(source)
 		if(!start_point)
-			return 0
+			return
 
 	//Send the data
 	for(var/current_filter in filter_list)

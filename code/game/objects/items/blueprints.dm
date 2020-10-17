@@ -7,7 +7,8 @@
 	name = "area modification item"
 	icon = 'icons/obj/items_and_weapons.dmi'
 	icon_state = "blueprints"
-	attack_verb = list("attacked", "bapped", "hit")
+	attack_verb_continuous = list("attacks", "baps", "hits")
+	attack_verb_simple = list("attack", "bap", "hit")
 	var/fluffnotice = "Nobody's gonna read this stuff!"
 	var/in_use = FALSE
 
@@ -27,11 +28,15 @@
 /obj/item/areaeditor/Topic(href, href_list)
 	if(..())
 		return TRUE
-	if(!usr.canUseTopic(src))
+	if(!usr.canUseTopic(src) || usr != loc)
 		usr << browse(null, "window=blueprints")
 		return TRUE
 	if(href_list["create_area"])
 		if(in_use)
+			return
+		var/area/A = get_area(usr)
+		if(A.area_flags & NOTELEPORT)
+			to_chat(usr, "<span class='warning'>You cannot edit restricted areas.</span>")
 			return
 		in_use = TRUE
 		create_area(usr)
@@ -59,7 +64,7 @@
 /obj/item/areaeditor/blueprints/attack_self(mob/user)
 	. = ..()
 	if(!legend)
-		var/area/A = get_area()
+		var/area/A = get_area(user)
 		if(get_area_type() == AREA_STATION)
 			. += "<p>According to \the [src], you are now in <b>\"[html_encode(A.name)]\"</b>.</p>"
 			. += "<p><a href='?src=[REF(src)];edit_area=1'>Change area name</a></p>"
@@ -112,13 +117,12 @@
 
 /obj/item/areaeditor/blueprints/proc/get_images(turf/T, viewsize)
 	. = list()
-	for(var/tt in RANGE_TURFS(viewsize, T))
-		var/turf/TT = tt
+	for(var/turf/TT in range(viewsize, T))
 		if(TT.blueprint_data)
 			. += TT.blueprint_data
 
 /obj/item/areaeditor/blueprints/proc/set_viewer(mob/user, message = "")
-	if(user && user.client)
+	if(user?.client)
 		if(viewing)
 			clear_viewer()
 		viewing = user.client
@@ -141,22 +145,19 @@
 	legend = FALSE
 
 
-/obj/item/areaeditor/proc/get_area()
-	var/turf/T = get_turf(usr)
-	var/area/A = T.loc
-	return A
-
-/obj/item/areaeditor/proc/get_area_type(area/A = get_area())
+/obj/item/areaeditor/proc/get_area_type(area/A)
+	if (!A)
+		A = get_area(usr)
 	if(A.outdoors)
 		return AREA_SPACE
 	var/list/SPECIALS = list(
 		/area/shuttle,
-		/area/admin,
-		/area/arrival,
 		/area/centcom,
 		/area/asteroid,
 		/area/tdome,
-		/area/wizard_station
+		/area/wizard_station,
+		/area/hilbertshotel,
+		/area/hilbertshotelstorage
 	)
 	for (var/type in SPECIALS)
 		if ( istype(A,type) )
@@ -184,43 +185,22 @@
 	return ""
 
 /obj/item/areaeditor/proc/edit_area()
-	var/area/A = get_area()
+	var/area/A = get_area(usr)
 	var/prevname = "[A.name]"
 	var/str = stripped_input(usr,"New area name:", "Area Creation", "", MAX_NAME_LEN)
 	if(!str || !length(str) || str==prevname) //cancel
 		return
 	if(length(str) > 50)
-		to_chat(usr, "<span class='warning'>The given name is too long.  The area's name is unchanged.</span>")
+		to_chat(usr, "<span class='warning'>The given name is too long. The area's name is unchanged.</span>")
 		return
-	set_area_machinery_title(A,str,prevname)
-	for(var/area/RA in A.related)
-		RA.name = str
-		if(RA.firedoors)
-			for(var/D in RA.firedoors)
-				var/obj/machinery/door/firedoor/FD = D
-				FD.CalculateAffectingAreas()
+
+	rename_area(A, str)
+
 	to_chat(usr, "<span class='notice'>You rename the '[prevname]' to '[str]'.</span>")
 	log_game("[key_name(usr)] has renamed [prevname] to [str]")
 	A.update_areasize()
 	interact()
-	return 1
-
-
-/obj/item/areaeditor/proc/set_area_machinery_title(area/A,title,oldtitle)
-	if(!oldtitle) // or replacetext goes to infinite loop
-		return
-	for(var/area/RA in A.related)
-		for(var/obj/machinery/airalarm/M in RA)
-			M.name = replacetext(M.name,oldtitle,title)
-		for(var/obj/machinery/power/apc/M in RA)
-			M.name = replacetext(M.name,oldtitle,title)
-		for(var/obj/machinery/atmospherics/components/unary/vent_scrubber/M in RA)
-			M.name = replacetext(M.name,oldtitle,title)
-		for(var/obj/machinery/atmospherics/components/unary/vent_pump/M in RA)
-			M.name = replacetext(M.name,oldtitle,title)
-		for(var/obj/machinery/door/M in RA)
-			M.name = replacetext(M.name,oldtitle,title)
-	//TODO: much much more. Unnamed airlocks, cameras, etc.
+	return TRUE
 
 //Blueprint Subtypes
 
@@ -230,3 +210,31 @@
 	icon = 'icons/obj/items_and_weapons.dmi'
 	icon_state = "blueprints"
 	fluffnotice = "Intellectual Property of Nanotrasen. For use in engineering cyborgs only. Wipe from memory upon departure from the station."
+
+/proc/rename_area(a, new_name)
+	var/area/A = get_area(a)
+	var/prevname = "[A.name]"
+	set_area_machinery_title(A, new_name, prevname)
+	A.name = new_name
+	if(A.firedoors)
+		for(var/D in A.firedoors)
+			var/obj/machinery/door/firedoor/FD = D
+			FD.CalculateAffectingAreas()
+	A.update_areasize()
+	return TRUE
+
+
+/proc/set_area_machinery_title(area/A, title, oldtitle)
+	if(!oldtitle) // or replacetext goes to infinite loop
+		return
+	for(var/obj/machinery/airalarm/M in A)
+		M.name = replacetext(M.name,oldtitle,title)
+	for(var/obj/machinery/power/apc/M in A)
+		M.name = replacetext(M.name,oldtitle,title)
+	for(var/obj/machinery/atmospherics/components/unary/vent_scrubber/M in A)
+		M.name = replacetext(M.name,oldtitle,title)
+	for(var/obj/machinery/atmospherics/components/unary/vent_pump/M in A)
+		M.name = replacetext(M.name,oldtitle,title)
+	for(var/obj/machinery/door/M in A)
+		M.name = replacetext(M.name,oldtitle,title)
+	//TODO: much much more. Unnamed airlocks, cameras, etc.

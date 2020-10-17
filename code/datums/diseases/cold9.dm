@@ -4,21 +4,25 @@
 	spread_text = "On contact"
 	spread_flags = DISEASE_SPREAD_BLOOD | DISEASE_SPREAD_CONTACT_SKIN | DISEASE_SPREAD_CONTACT_FLUIDS
 	cure_text = "Common Cold Anti-bodies & Spaceacillin"
-	cures = list("spaceacillin")
+	cures = list(/datum/reagent/medicine/spaceacillin)
 	agent = "ICE9-rhinovirus"
 	viable_mobtypes = list(/mob/living/carbon/human)
 	desc = "If left untreated the subject will slow, as if partly frozen."
 	severity = DISEASE_SEVERITY_HARMFUL
 
+
 /datum/disease/cold9/stage_act()
-	..()
+	. = ..()
+	if(!.)
+		return
+
 	switch(stage)
 		if(2)
 			affected_mob.adjust_bodytemperature(-10)
-			if(prob(1) && prob(10))
+			if(prob(0.1))
 				to_chat(affected_mob, "<span class='notice'>You feel better.</span>")
 				cure()
-				return
+				return FALSE
 			if(prob(1))
 				affected_mob.emote("sneeze")
 			if(prob(1))

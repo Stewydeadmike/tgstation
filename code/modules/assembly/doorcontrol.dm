@@ -1,30 +1,32 @@
-/obj/item/device/assembly/control
+/obj/item/assembly/control
 	name = "blast door controller"
 	desc = "A small electronic device able to control a blast door remotely."
 	icon_state = "control"
-	attachable = 1
+	attachable = TRUE
 	var/id = null
 	var/can_change_id = 0
-	var/cooldown = 0//Door cooldowns
+	var/cooldown = FALSE //Door cooldowns
+	var/sync_doors = TRUE
 
-/obj/item/device/assembly/control/examine(mob/user)
-	..()
+/obj/item/assembly/control/examine(mob/user)
+	. = ..()
 	if(id)
-		to_chat(user, "<span class='notice'>Its channel ID is '[id]'.</span>")
+		. += "<span class='notice'>Its channel ID is '[id]'.</span>"
 
-/obj/item/device/assembly/control/activate()
-	cooldown = 1
+/obj/item/assembly/control/activate()
 	var/openclose
+	if(cooldown)
+		return
+	cooldown = TRUE
 	for(var/obj/machinery/door/poddoor/M in GLOB.machines)
 		if(M.id == src.id)
-			if(openclose == null)
+			if(openclose == null || !sync_doors)
 				openclose = M.density
 			INVOKE_ASYNC(M, openclose ? /obj/machinery/door/poddoor.proc/open : /obj/machinery/door/poddoor.proc/close)
-	sleep(10)
-	cooldown = 0
+	addtimer(VARSET_CALLBACK(src, cooldown, FALSE), 10)
 
 
-/obj/item/device/assembly/control/airlock
+/obj/item/assembly/control/airlock
 	name = "airlock controller"
 	desc = "A small electronic device able to control an airlock remotely."
 	id = "badmin" // Set it to null for MEGAFUN.
@@ -37,8 +39,10 @@
 				16= door safties (SAFE)
 	*/
 
-/obj/item/device/assembly/control/airlock/activate()
-	cooldown = 1
+/obj/item/assembly/control/airlock/activate()
+	if(cooldown)
+		return
+	cooldown = TRUE
 	var/doors_need_closing = FALSE
 	var/list/obj/machinery/door/airlock/open_or_close = list()
 	for(var/obj/machinery/door/airlock/D in GLOB.airlocks)
@@ -55,27 +59,26 @@
 					D.update_icon()
 			if(specialfunctions & SHOCK)
 				if(D.secondsElectrified)
-					D.secondsElectrified = -1
-					D.shockedby += "\[[time_stamp()]\][usr](ckey:[usr.ckey])"
-					add_logs(usr, D, "electrified")
+					D.set_electrified(MACHINE_ELECTRIFIED_PERMANENT, usr)
 				else
-					D.secondsElectrified = 0
+					D.set_electrified(MACHINE_NOT_ELECTRIFIED, usr)
 			if(specialfunctions & SAFE)
 				D.safe = !D.safe
 
 	for(var/D in open_or_close)
 		INVOKE_ASYNC(D, doors_need_closing ? /obj/machinery/door/airlock.proc/close : /obj/machinery/door/airlock.proc/open)
 
-	sleep(10)
-	cooldown = 0
+	addtimer(VARSET_CALLBACK(src, cooldown, FALSE), 10)
 
 
-/obj/item/device/assembly/control/massdriver
+/obj/item/assembly/control/massdriver
 	name = "mass driver controller"
 	desc = "A small electronic device able to control a mass driver."
 
-/obj/item/device/assembly/control/massdriver/activate()
-	cooldown = 1
+/obj/item/assembly/control/massdriver/activate()
+	if(cooldown)
+		return
+	cooldown = TRUE
 	for(var/obj/machinery/door/poddoor/M in GLOB.machines)
 		if (M.id == src.id)
 			INVOKE_ASYNC(M, /obj/machinery/door/poddoor.proc/open)
@@ -92,16 +95,17 @@
 		if (M.id == src.id)
 			INVOKE_ASYNC(M, /obj/machinery/door/poddoor.proc/close)
 
-	sleep(10)
-	cooldown = 0
+	addtimer(VARSET_CALLBACK(src, cooldown, FALSE), 10)
 
 
-/obj/item/device/assembly/control/igniter
+/obj/item/assembly/control/igniter
 	name = "ignition controller"
 	desc = "A remote controller for a mounted igniter."
 
-/obj/item/device/assembly/control/igniter/activate()
-	cooldown = 1
+/obj/item/assembly/control/igniter/activate()
+	if(cooldown)
+		return
+	cooldown = TRUE
 	for(var/obj/machinery/sparker/M in GLOB.machines)
 		if (M.id == src.id)
 			INVOKE_ASYNC(M, /obj/machinery/sparker.proc/ignite)
@@ -112,33 +116,69 @@
 			M.on = !M.on
 			M.icon_state = "igniter[M.on]"
 
-	sleep(30)
-	cooldown = 0
+	addtimer(VARSET_CALLBACK(src, cooldown, FALSE), 30)
 
-
-/obj/item/device/assembly/control/flasher
+/obj/item/assembly/control/flasher
 	name = "flasher controller"
 	desc = "A remote controller for a mounted flasher."
 
-/obj/item/device/assembly/control/flasher/activate()
-	cooldown = 1
+/obj/item/assembly/control/flasher/activate()
+	if(cooldown)
+		return
+	cooldown = TRUE
 	for(var/obj/machinery/flasher/M in GLOB.machines)
 		if(M.id == src.id)
 			INVOKE_ASYNC(M, /obj/machinery/flasher.proc/flash)
 
-	sleep(50)
-	cooldown = 0
+	addtimer(VARSET_CALLBACK(src, cooldown, FALSE), 50)
 
 
-/obj/item/device/assembly/control/crematorium
+/obj/item/assembly/control/crematorium
 	name = "crematorium controller"
 	desc = "An evil-looking remote controller for a crematorium."
 
-/obj/item/device/assembly/control/crematorium/activate()
-	cooldown = 1
+/obj/item/assembly/control/crematorium/activate()
+	if(cooldown)
+		return
+	cooldown = TRUE
 	for (var/obj/structure/bodycontainer/crematorium/C in GLOB.crematoriums)
 		if (C.id == id)
 			C.cremate(usr)
 
-	sleep(50)
-	cooldown = 0
+	addtimer(VARSET_CALLBACK(src, cooldown, FALSE), 50)
+
+//how long it spends on each floor when moving somewhere, so it'd take 4 seconds to reach you if it had to travel up 2 floors
+#define FLOOR_TRAVEL_TIME 2 SECONDS
+/obj/item/assembly/control/elevator
+	name = "elevator controller"
+	desc = "A small device used to call elevators to the current floor."
+
+/obj/item/assembly/control/elevator/activate()
+	if(cooldown)
+		return
+	cooldown = TRUE
+	var/obj/structure/industrial_lift/lift
+	for(var/l in GLOB.lifts)
+		var/obj/structure/industrial_lift/possible_lift = l
+		if(possible_lift.id != id || possible_lift.z == z || possible_lift.controls_locked)
+			continue
+		lift = possible_lift
+		break
+	if(!lift)
+		addtimer(VARSET_CALLBACK(src, cooldown, FALSE), 2 SECONDS)
+		return
+	lift.visible_message("<span class='notice'>[src] clinks and whirrs into automated motion, locking controls.</span")
+	lift.lift_master_datum.set_controls(LOCKED)
+	var/difference = abs(z - lift.z)
+	var/direction = lift.z > z ? UP : DOWN
+	var/travel_duration = FLOOR_TRAVEL_TIME * difference //100 / 2 floors up = 50 seconds on every floor, will always reach destination in the same time
+	addtimer(VARSET_CALLBACK(src, cooldown, FALSE), travel_duration)
+	for(var/i in 1 to difference)
+		sleep(FLOOR_TRAVEL_TIME)//hey this should be alright... right?
+		if(QDELETED(lift) || QDELETED(src))//elevator control or button gone = don't go up anymore
+			return
+		lift.lift_master_datum.MoveLift(direction, null)
+	lift.visible_message("<span class='notice'>[src] clicks, ready to be manually operated again.</span")
+	lift.lift_master_datum.set_controls(UNLOCKED)
+
+#undef FLOOR_TRAVEL_TIME

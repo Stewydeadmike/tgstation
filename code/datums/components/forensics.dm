@@ -1,5 +1,6 @@
 /datum/component/forensics
 	dupe_mode = COMPONENT_DUPE_UNIQUE
+	can_transfer = TRUE
 	var/list/fingerprints		//assoc print = print
 	var/list/hiddenprints		//assoc ckey = realname/gloves/ckey
 	var/list/blood_DNA			//assoc dna = bloodtype
@@ -15,14 +16,23 @@
 
 /datum/component/forensics/Initialize(new_fingerprints, new_hiddenprints, new_blood_DNA, new_fibers)
 	if(!isatom(parent))
-		. = COMPONENT_INCOMPATIBLE
-		CRASH("Forensics datum applied incorrectly to non-atom of type [parent.type]!")
+		return COMPONENT_INCOMPATIBLE
 	fingerprints = new_fingerprints
 	hiddenprints = new_hiddenprints
 	blood_DNA = new_blood_DNA
 	fibers = new_fibers
 	check_blood()
-	RegisterSignal(COMSIG_COMPONENT_CLEAN_ACT, .proc/clean_act)
+
+/datum/component/forensics/RegisterWithParent()
+	check_blood()
+	RegisterSignal(parent, COMSIG_COMPONENT_CLEAN_ACT, .proc/clean_act)
+
+/datum/component/forensics/UnregisterFromParent()
+    UnregisterSignal(parent, list(COMSIG_COMPONENT_CLEAN_ACT))
+
+/datum/component/forensics/PostTransfer()
+	if(!isatom(parent))
+		return COMPONENT_INCOMPATIBLE
 
 /datum/component/forensics/proc/wipe_fingerprints()
 	fingerprints = null
@@ -33,21 +43,25 @@
 
 /datum/component/forensics/proc/wipe_blood_DNA()
 	blood_DNA = null
-	if(isitem(parent))
-		qdel(parent.GetComponent(/datum/component/decal/blood))
 	return TRUE
 
 /datum/component/forensics/proc/wipe_fibers()
 	fibers = null
 	return TRUE
 
-/datum/component/forensics/proc/clean_act(strength)
-	if(strength >= CLEAN_STRENGTH_FINGERPRINTS)
+/datum/component/forensics/proc/clean_act(datum/source, clean_types)
+	SIGNAL_HANDLER
+
+	. = NONE
+	if(clean_types & CLEAN_TYPE_FINGERPRINTS)
 		wipe_fingerprints()
-	if(strength >= CLEAN_STRENGTH_BLOOD)
+		. = COMPONENT_CLEANED
+	if(clean_types & CLEAN_TYPE_BLOOD)
 		wipe_blood_DNA()
-	if(strength >= CLEAN_STRENGTH_FIBERS)
+		. = COMPONENT_CLEANED
+	if(clean_types & CLEAN_TYPE_FIBERS)
 		wipe_fibers()
+		. = COMPONENT_CLEANED
 
 /datum/component/forensics/proc/add_fingerprint_list(list/_fingerprints)	//list(text)
 	if(!length(_fingerprints))
@@ -58,8 +72,14 @@
 	return TRUE
 
 /datum/component/forensics/proc/add_fingerprint(mob/living/M, ignoregloves = FALSE)
-	if(!M)
-		return
+	if(!isliving(M))
+		if(!iscameramob(M))
+			return
+		if(isaicamera(M))
+			var/mob/camera/ai_eye/ai_camera = M
+			if(!ai_camera.ai)
+				return
+			M = ai_camera.ai
 	add_hiddenprint(M)
 	if(ishuman(M))
 		var/mob/living/carbon/human/H = M
@@ -123,8 +143,16 @@
 		hiddenprints[i] = _hiddenprints[i]
 	return TRUE
 
-/datum/component/forensics/proc/add_hiddenprint(mob/living/M)
-	if(!M || !M.key)
+/datum/component/forensics/proc/add_hiddenprint(mob/M)
+	if(!isliving(M))
+		if(!iscameramob(M))
+			return
+		if(isaicamera(M))
+			var/mob/camera/ai_eye/ai_camera = M
+			if(!ai_camera.ai)
+				return
+			M = ai_camera.ai
+	if(!M.key)
 		return
 	var/hasgloves = ""
 	if(ishuman(M))
@@ -157,4 +185,4 @@
 		return
 	if(!length(blood_DNA))
 		return
-	parent.LoadComponent(/datum/component/decal/blood)
+	parent.AddElement(/datum/element/decal/blood)

@@ -7,15 +7,16 @@
 	desc = "A big white-and-blue pet carrier. Good for carrying <s>meat to the chef</s> cute animals around."
 	icon = 'icons/obj/pet_carrier.dmi'
 	icon_state = "pet_carrier_open"
-	item_state = "pet_carrier"
+	inhand_icon_state = "pet_carrier"
 	lefthand_file = 'icons/mob/inhands/items_lefthand.dmi'
 	righthand_file = 'icons/mob/inhands/items_righthand.dmi'
 	force = 5
-	attack_verb = list("bashed", "carried")
+	attack_verb_continuous = list("bashes", "carries")
+	attack_verb_simple = list("bash", "carry")
 	w_class = WEIGHT_CLASS_BULKY
 	throw_speed = 2
 	throw_range = 3
-	materials = list(MAT_METAL = 7500, MAT_GLASS = 100)
+	custom_materials = list(/datum/material/iron = 7500, /datum/material/glass = 100)
 	var/open = TRUE
 	var/locked = FALSE
 	var/list/occupants = list()
@@ -43,17 +44,17 @@
 	..()
 
 /obj/item/pet_carrier/examine(mob/user)
-	..()
+	. = ..()
 	if(occupants.len)
 		for(var/V in occupants)
 			var/mob/living/L = V
-			to_chat(user, "<span class='notice'>It has [L] inside.</span>")
+			. += "<span class='notice'>It has [L] inside.</span>"
 	else
-		to_chat(user, "<span class='notice'>It has nothing inside.</span>")
+		. += "<span class='notice'>It has nothing inside.</span>"
 	if(user.canUseTopic(src))
-		to_chat(user, "<span class='notice'>Activate it in your hand to [open ? "close" : "open"] its door.</span>")
+		. += "<span class='notice'>Activate it in your hand to [open ? "close" : "open"] its door.</span>"
 		if(!open)
-			to_chat(user, "<span class='notice'>Alt-click to [locked ? "unlock" : "lock"] its door.</span>")
+			. += "<span class='notice'>Alt-click to [locked ? "unlock" : "lock"] its door.</span>"
 
 /obj/item/pet_carrier/attack_self(mob/living/user)
 	if(open)
@@ -89,7 +90,7 @@
 	if(target.mob_size > max_occupant_weight)
 		if(ishuman(target))
 			var/mob/living/carbon/human/H = target
-			if(iscatperson(H))
+			if(isfelinid(H))
 				to_chat(user, "<span class='warning'>You'd need a lot of catnip and treats, plus maybe a laser pointer, for that to work.</span>")
 			else
 				to_chat(user, "<span class='warning'>Humans, generally, do not fit into pet carriers.</span>")
@@ -114,15 +115,15 @@
 		update_icon()
 		return
 	else if(user.client)
-		container_resist(user)
+		container_resist_act(user)
 
-/obj/item/pet_carrier/container_resist(mob/living/user)
+/obj/item/pet_carrier/container_resist_act(mob/living/user)
 	user.changeNext_move(CLICK_CD_BREAKOUT)
 	user.last_special = world.time + CLICK_CD_BREAKOUT
 	if(user.mob_size <= MOB_SIZE_SMALL)
 		to_chat(user, "<span class='notice'>You poke a limb through [src]'s bars and start fumbling for the lock switch... (This will take some time.)</span>")
 		to_chat(loc, "<span class='warning'>You see [user] reach through the bars and fumble for the lock switch!</span>")
-		if(!do_after(user, rand(300, 400), target = user) || open || !locked || !user in occupants)
+		if(!do_after(user, rand(300, 400), target = user) || open || !locked || !(user in occupants))
 			return
 		loc.visible_message("<span class='warning'>[user] flips the lock switch on [src] by reaching through!</span>", null, null, null, user)
 		to_chat(user, "<span class='boldannounce'>Bingo! The lock pops open!</span>")
@@ -132,7 +133,7 @@
 	else
 		loc.visible_message("<span class='warning'>[src] starts rattling as something pushes against the door!</span>", null, null, null, user)
 		to_chat(user, "<span class='notice'>You start pushing out of [src]... (This will take about 20 seconds.)</span>")
-		if(!do_after(user, 200, target = user) || open || !locked || !user in occupants)
+		if(!do_after(user, 200, target = user) || open || !locked || !(user in occupants))
 			return
 		loc.visible_message("<span class='warning'>[user] shoves out of	[src]!</span>", null, null, null, user)
 		to_chat(user, "<span class='notice'>You shove open [src]'s door against the lock's resistance and fall out!</span>")
@@ -141,14 +142,16 @@
 		update_icon()
 		remove_occupant(user)
 
-/obj/item/pet_carrier/update_icon()
-	cut_overlay("unlocked")
-	cut_overlay("locked")
+/obj/item/pet_carrier/update_icon_state()
 	if(open)
 		icon_state = initial(icon_state)
 	else
 		icon_state = "pet_carrier_[!occupants.len ? "closed" : "occupied"]"
-		add_overlay("[locked ? "" : "un"]locked")
+
+/obj/item/pet_carrier/update_overlays()
+	. = ..()
+	if(!open)
+		. += "[locked ? "" : "un"]locked"
 
 /obj/item/pet_carrier/MouseDrop(atom/over_atom)
 	. = ..()
@@ -164,7 +167,7 @@
 		return
 	user.visible_message("<span class='notice'>[user] starts loading [target] into [src].</span>", \
 	"<span class='notice'>You start loading [target] into [src]...</span>", null, null, target)
-	to_chat(target, "<span class='userdanger'>[user] starts loading you into their [name]!</span>")
+	to_chat(target, "<span class='userdanger'>[user] starts loading you into [user.p_their()] [name]!</span>")
 	if(!do_mob(user, target, 30))
 		return
 	if(target in occupants)
@@ -174,7 +177,7 @@
 		return
 	user.visible_message("<span class='notice'>[user] loads [target] into [src]!</span>", \
 	"<span class='notice'>You load [target] into [src].</span>", null, null, target)
-	to_chat(target, "<span class='userdanger'>[user] loads you into their [name]!</span>")
+	to_chat(target, "<span class='userdanger'>[user] loads you into [user.p_their()] [name]!</span>")
 	add_occupant(target)
 
 /obj/item/pet_carrier/proc/add_occupant(mob/living/occupant)
@@ -185,7 +188,7 @@
 	occupant_weight += occupant.mob_size
 
 /obj/item/pet_carrier/proc/remove_occupant(mob/living/occupant, turf/new_turf)
-	if(!occupant in occupants || !istype(occupant))
+	if(!(occupant in occupants) || !istype(occupant))
 		return
 	occupant.forceMove(new_turf ? new_turf : drop_location())
 	occupants -= occupant

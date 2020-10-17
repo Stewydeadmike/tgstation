@@ -4,14 +4,18 @@
 	spread_text = "On contact"
 	spread_flags = DISEASE_SPREAD_BLOOD | DISEASE_SPREAD_CONTACT_SKIN | DISEASE_SPREAD_CONTACT_FLUIDS
 	cure_text = "Synaptizine & Sulfur"
-	cures = list("synaptizine","sulfur")
+	cures = list(/datum/reagent/medicine/synaptizine,/datum/reagent/sulfur)
 	agent = "Gravitokinetic Bipotential SADS-"
 	viable_mobtypes = list(/mob/living/carbon/human, /mob/living/carbon/monkey)
 	desc = "If left untreated death will occur."
 	severity = DISEASE_SEVERITY_BIOHAZARD
 
+
 /datum/disease/fake_gbs/stage_act()
-	..()
+	. = ..()
+	if(!.)
+		return
+
 	switch(stage)
 		if(2)
 			if(prob(1))

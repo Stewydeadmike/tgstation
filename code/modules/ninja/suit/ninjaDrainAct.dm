@@ -27,7 +27,7 @@ They *could* go in their appropriate files, but this is supposed to be modular
 
 	. = 0
 
-	if(cell && cell.charge)
+	if(cell?.charge)
 		var/datum/effect_system/spark_spread/spark_system = new /datum/effect_system/spark_spread()
 		spark_system.set_up(5, 0, loc)
 
@@ -43,16 +43,16 @@ They *could* go in their appropriate files, but this is supposed to be modular
 
 			if (do_after(H,10, target = src))
 				spark_system.start()
-				playsound(loc, "sparks", 50, 1)
-				cell.charge -= drain
-				S.cell.charge += drain
+				playsound(loc, "sparks", 50, TRUE)
+				cell.use(drain)
+				S.cell.give(drain)
 				. += drain
 			else
 				break
 
 		if(!(obj_flags & EMAGGED))
 			flick("apc-spark", G)
-			playsound(loc, "sparks", 50, 1)
+			playsound(loc, "sparks", 50, TRUE)
 			obj_flags |= EMAGGED
 			locked = FALSE
 			update_icon()
@@ -87,9 +87,9 @@ They *could* go in their appropriate files, but this is supposed to be modular
 
 			if (do_after(H,10, target = src))
 				spark_system.start()
-				playsound(loc, "sparks", 50, 1)
+				playsound(loc, "sparks", 50, TRUE)
 				charge -= drain
-				S.cell.charge += drain
+				S.cell.give(drain)
 				. += drain
 
 			else
@@ -109,14 +109,13 @@ They *could* go in their appropriate files, but this is supposed to be modular
 			if(S.cell.charge + charge > S.cell.maxcharge)
 				S.cell.charge = S.cell.maxcharge
 			else
-				S.cell.charge += charge
+				S.cell.give(charge)
 			charge = 0
 			corrupt()
 			update_icon()
 
 /obj/machinery/proc/AI_notify_hack()
-	var/turf/location = get_turf(src)
-	var/alertstr = "<span class='userdanger'>Network Alert: Hacking attempt detected[location?" in [location]":". Unable to pinpoint location"]</span>."
+	var/alertstr = "<span class='userdanger'>Network Alert: Hacking attempt detected[get_area(src)?" in [get_area_name(src, TRUE)]":". Unable to pinpoint location"].</span>"
 	for(var/mob/living/silicon/ai/AI in GLOB.player_list)
 		to_chat(AI, alertstr)
 
@@ -169,8 +168,8 @@ They *could* go in their appropriate files, but this is supposed to be modular
 		drain = (round((rand(G.mindrain, G.maxdrain))/2))
 		var/drained = 0
 		if(PN && do_after(H,10, target = src))
-			drained = min(drain, PN.avail)
-			PN.load += drained
+			drained = min(drain, delayed_surplus())
+			add_delayedload(drained)
 			if(drained < drain)//if no power on net, drain apcs
 				for(var/obj/machinery/power/terminal/T in PN.nodes)
 					if(istype(T.master, /obj/machinery/power/apc))
@@ -181,7 +180,7 @@ They *could* go in their appropriate files, but this is supposed to be modular
 		else
 			break
 
-		S.cell.charge += drained
+		S.cell.give(drain)
 		if(S.cell.charge > S.cell.maxcharge)
 			. += (drained-(S.cell.charge - S.cell.maxcharge))
 			S.cell.charge = S.cell.maxcharge
@@ -191,7 +190,7 @@ They *could* go in their appropriate files, but this is supposed to be modular
 		S.spark_system.start()
 
 //MECH//
-/obj/mecha/ninjadrain_act(obj/item/clothing/suit/space/space_ninja/S, mob/living/carbon/human/H, obj/item/clothing/gloves/space_ninja/G)
+/obj/vehicle/sealed/mecha/ninjadrain_act(obj/item/clothing/suit/space/space_ninja/S, mob/living/carbon/human/H, obj/item/clothing/gloves/space_ninja/G)
 	if(!S || !H || !G)
 		return INVALID_DRAIN
 
@@ -199,7 +198,7 @@ They *could* go in their appropriate files, but this is supposed to be modular
 	var/drain = 0 //Drain amount
 	. = 0
 
-	occupant_message("<span class='danger'>Warning: Unauthorized access through sub-route 4, block H, detected.</span>")
+	to_chat(occupants, "[icon2html(src, occupants)]<span class='danger'>Warning: Unauthorized access through sub-route 4, block H, detected.</span>")
 	if(get_charge())
 		while(G.candrain && cell.charge > 0 && !maxcapacity)
 			drain = rand(G.mindrain,G.maxdrain)
@@ -210,9 +209,9 @@ They *could* go in their appropriate files, but this is supposed to be modular
 				maxcapacity = 1
 			if (do_after(H,10, target = src))
 				spark_system.start()
-				playsound(loc, "sparks", 50, 1)
+				playsound(loc, "sparks", 50, TRUE)
 				cell.use(drain)
-				S.cell.charge += drain
+				S.cell.give(drain)
 				. += drain
 			else
 				break
@@ -228,7 +227,7 @@ They *could* go in their appropriate files, but this is supposed to be modular
 
 	to_chat(src, "<span class='danger'>Warning: Unauthorized access through sub-route 12, block C, detected.</span>")
 
-	if(cell && cell.charge)
+	if(cell?.charge)
 		while(G.candrain && cell.charge > 0 && !maxcapacity)
 			drain = rand(G.mindrain,G.maxdrain)
 			if(cell.charge < drain)
@@ -238,9 +237,9 @@ They *could* go in their appropriate files, but this is supposed to be modular
 				maxcapacity = 1
 			if (do_after(H,10))
 				spark_system.start()
-				playsound(loc, "sparks", 50, 1)
-				cell.charge -= drain
-				S.cell.charge += drain
+				playsound(loc, "sparks", 50, TRUE)
+				cell.use(drain)
+				S.cell.give(drain)
 				. += drain
 			else
 				break
@@ -259,6 +258,6 @@ They *could* go in their appropriate files, but this is supposed to be modular
 		//Got that electric touch
 		var/datum/effect_system/spark_spread/spark_system = new /datum/effect_system/spark_spread()
 		spark_system.set_up(5, 0, loc)
-		playsound(src, "sparks", 50, 1)
+		playsound(src, "sparks", 50, TRUE)
 		visible_message("<span class='danger'>[H] electrocutes [src] with [H.p_their()] touch!</span>", "<span class='userdanger'>[H] electrocutes you with [H.p_their()] touch!</span>")
 		electrocute_act(25, H)

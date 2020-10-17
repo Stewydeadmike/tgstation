@@ -42,7 +42,7 @@
 	vendingMachines.Remove(originMachine)
 	originMachine.shut_up = 0
 	originMachine.shoot_inventory = 1
-
+	announce_to_ghosts(originMachine)
 
 /datum/round_event/brand_intelligence/tick()
 	if(!originMachine || QDELETED(originMachine) || originMachine.shut_up || originMachine.wires.is_all_cut())	//if the original vending machine is missing or has it's voice switch flipped
@@ -50,7 +50,7 @@
 			saved.shoot_inventory = 0
 		if(originMachine)
 			originMachine.speak("I am... vanquished. My people will remem...ber...meeee.")
-			originMachine.visible_message("[originMachine] beeps and seems lifeless.")
+			originMachine.visible_message("<span class='notice'>[originMachine] beeps and seems lifeless.</span>")
 		kill()
 		return
 	vendingMachines = removeNullsFromList(vendingMachines)
@@ -59,7 +59,7 @@
 			if(prob(70) && !QDELETED(upriser))
 				var/mob/living/simple_animal/hostile/mimic/copy/M = new(upriser.loc, upriser, null, 1) // it will delete upriser on creation and override any machine checks
 				M.faction = list("profit")
-				M.speak = rampant_speeches.Copy()
+				M.speak = string_list(rampant_speeches.Copy())
 				M.speak_chance = 7
 			else
 				explosion(upriser.loc, -1, 1, 2, 4, 0)

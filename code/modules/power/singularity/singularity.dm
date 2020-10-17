@@ -7,14 +7,15 @@
 	icon_state = "singularity_s1"
 	anchored = TRUE
 	density = TRUE
+	move_resist = INFINITY
 	layer = MASSIVE_OBJ_LAYER
 	light_range = 6
-	appearance_flags = 0
+	appearance_flags = LONG_GLIDE
 	var/current_size = 1
 	var/allowed_size = 1
 	var/contained = 1 //Are we going to move around?
 	var/energy = 100 //How strong are we?
-	var/dissipate = 1 //Do we lose energy over time?
+	var/dissipate = TRUE //Do we lose energy over time?
 	var/dissipate_delay = 10
 	var/dissipate_track = 0
 	var/dissipate_strength = 1 //How much energy do we lose?
@@ -26,6 +27,7 @@
 	var/last_failed_movement = 0//Will not move in the same dir if it couldnt before, will help with the getting stuck on fields thing
 	var/last_warning
 	var/consumedSupermatter = 0 //If the singularity has eaten a supermatter shard and can go to stage six
+	var/drifting_dir = 0 // Chosen direction to drift in
 	resistance_flags = INDESTRUCTIBLE | LAVA_PROOF | FIRE_PROOF | UNACIDABLE | ACID_PROOF | FREEZE_PROOF
 	obj_flags = CAN_BE_HIT | DANGEROUS_POSSESSION
 
@@ -42,7 +44,8 @@
 		if(singubeacon.active)
 			target = singubeacon
 			break
-	return
+	AddElement(/datum/element/bsa_blocker)
+	RegisterSignal(src, COMSIG_ATOM_BSA_BEAM, .proc/bluespace_reaction)
 
 /obj/singularity/Destroy()
 	STOP_PROCESSING(SSobj, src)
@@ -51,12 +54,23 @@
 	return ..()
 
 /obj/singularity/Move(atom/newloc, direct)
+	var/turf/T = get_turf(src)
+	for(var/dir in GLOB.cardinals)
+		if(direct & dir)
+			T = get_step(T, dir)
+			if(!T)
+				break
+			// eat the stuff if we're going to move into it so it doesn't mess up our movement
+			for(var/atom/A in T.contents)
+				consume(A)
+			consume(T)
+
 	if(current_size >= STAGE_FIVE || check_turfs_in(direct))
 		last_failed_movement = 0//Reset this because we moved
 		return ..()
 	else
 		last_failed_movement = direct
-		return 0
+		return FALSE
 
 /obj/singularity/attack_hand(mob/user)
 	consume(user)
@@ -73,13 +87,27 @@
 
 /obj/singularity/attackby(obj/item/W, mob/user, params)
 	consume(user)
-	return 1
+	return TRUE
 
 /obj/singularity/Process_Spacemove() //The singularity stops drifting for no man!
-	return 0
+	return FALSE
 
 /obj/singularity/blob_act(obj/structure/blob/B)
 	return
+
+/obj/singularity/attack_tk(mob/user)
+	if(iscarbon(user))
+		var/mob/living/carbon/C = user
+		C.visible_message("<span class='danger'>[C]'s head begins to collapse in on itself!</span>", "<span class='userdanger'>Your head feels like it's collapsing in on itself! This was really not a good idea!</span>", "<span class='hear'>You hear something crack and explode in gore.</span>")
+		var/turf/T = get_turf(C)
+		for(var/i in 1 to 3)
+			C.apply_damage(30, BRUTE, BODY_ZONE_HEAD)
+			new /obj/effect/gibspawner/generic(T, C)
+			sleep(1)
+		C.ghostize()
+		var/obj/item/bodypart/head/rip_u = C.get_bodypart(BODY_ZONE_HEAD)
+		rip_u.dismember(BURN) //nice try jedi
+		qdel(rip_u)
 
 /obj/singularity/ex_act(severity, target)
 	switch(severity)
@@ -97,23 +125,28 @@
 	return
 
 
-/obj/singularity/bullet_act(obj/item/projectile/P)
-	return 0 //Will there be an impact? Who knows.  Will we see it? No.
+/obj/singularity/bullet_act(obj/projectile/P)
+	qdel(P)
+	return BULLET_ACT_HIT //Will there be an impact? Who knows.  Will we see it? No.
 
 
-/obj/singularity/Collide(atom/A)
+/obj/singularity/Bump(atom/A)
 	consume(A)
+	if(QDELETED(A)) // don't keep moving into objects that weren't destroyed infinitely
+		step(src, drifting_dir)
 	return
 
+/obj/singularity/Crossed(atom/A)
+	..()
+	consume(A)
 
-/obj/singularity/CollidedWith(atom/movable/AM)
+/obj/singularity/Bumped(atom/movable/AM)
 	consume(AM)
 
 
 /obj/singularity/process()
 	if(current_size >= STAGE_TWO)
 		move()
-		radiation_pulse(src, min(5000, (energy*3)+1000), RAD_DISTANCE_COEFFICIENT*0.5)
 		if(prob(event_chance))//Chance for it to run a special event TODO:Come up with one or two more that fit
 			event()
 	eat()
@@ -128,11 +161,12 @@
 
 
 /obj/singularity/proc/admin_investigate_setup()
+	var/turf/T = get_turf(src)
 	last_warning = world.time
 	var/count = locate(/obj/machinery/field/containment) in urange(30, src, 1)
 	if(!count)
-		message_admins("A singulo has been created without containment fields active ([x],[y],[z])",1)
-	investigate_log("was created. [count?"":"<font color='red'>No containment fields were active</font>"]", INVESTIGATE_SINGULO)
+		message_admins("A singulo has been created without containment fields active at [ADMIN_VERBOSEJMP(T)].")
+	investigate_log("was created at [AREACOORD(T)]. [count?"":"<font color='red'>No containment fields were active</font>"]", INVESTIGATE_SINGULO)
 
 /obj/singularity/proc/dissipate()
 	if(!dissipate)
@@ -218,18 +252,18 @@
 			dissipate = 0
 	if(current_size == allowed_size)
 		investigate_log("<font color='red'>grew to size [current_size]</font>", INVESTIGATE_SINGULO)
-		return 1
+		return TRUE
 	else if(current_size < (--temp_allowed_size))
 		expand(temp_allowed_size)
 	else
-		return 0
+		return FALSE
 
 
 /obj/singularity/proc/check_energy()
 	if(energy <= 0)
 		investigate_log("collapsed.", INVESTIGATE_SINGULO)
 		qdel(src)
-		return 0
+		return FALSE
 	switch(energy)//Some of these numbers might need to be changed up later -Mport
 		if(1 to 199)
 			allowed_size = STAGE_ONE
@@ -246,7 +280,7 @@
 				allowed_size = STAGE_FIVE
 	if(current_size != allowed_size)
 		expand()
-	return 1
+	return TRUE
 
 
 /obj/singularity/proc/eat()
@@ -272,7 +306,7 @@
 /obj/singularity/proc/consume(atom/A)
 	var/gain = A.singularity_act(current_size, src)
 	src.energy += gain
-	if(istype(A, /obj/machinery/power/supermatter_shard) && !consumedSupermatter)
+	if(istype(A, /obj/machinery/power/supermatter_crystal) && !consumedSupermatter)
 		desc = "[initial(desc)] It glows fiercely with inner fire."
 		name = "supermatter-charged [initial(name)]"
 		consumedSupermatter = 1
@@ -282,17 +316,17 @@
 
 /obj/singularity/proc/move(force_move = 0)
 	if(!move_self)
-		return 0
+		return FALSE
 
-	var/movement_dir = pick(GLOB.alldirs - last_failed_movement)
+	var/drifting_dir = pick(GLOB.alldirs - last_failed_movement)
 
 	if(force_move)
-		movement_dir = force_move
+		drifting_dir = force_move
 
 	if(target && prob(60))
-		movement_dir = get_dir(src,target) //moves to a singulo beacon, if there is one
+		drifting_dir = get_dir(src,target) //moves to a singulo beacon, if there is one
 
-	step(src, movement_dir)
+	step(src, drifting_dir)
 
 /obj/singularity/proc/check_cardinals_range(steps, retry_with_move = FALSE)
 	. = length(GLOB.cardinals)			//Should be 4.
@@ -303,11 +337,11 @@
 			if(step(src, i))			//Move in each direction.
 				if(check_cardinals_range(steps, FALSE))		//New location passes, return true.
 					return TRUE
-	. = !.
+	return !.
 
 /obj/singularity/proc/check_turfs_in(direction = 0, step = 0)
 	if(!direction)
-		return 0
+		return FALSE
 	var/steps = 0
 	if(!step)
 		switch(current_size)
@@ -328,7 +362,7 @@
 	for(var/i = 1 to steps)
 		T = get_step(T,direction)
 	if(!isturf(T))
-		return 0
+		return FALSE
 	turfs.Add(T)
 	var/dir2 = 0
 	var/dir3 = 0
@@ -343,35 +377,35 @@
 	for(var/j = 1 to steps-1)
 		T2 = get_step(T2,dir2)
 		if(!isturf(T2))
-			return 0
+			return FALSE
 		turfs.Add(T2)
 	for(var/k = 1 to steps-1)
 		T = get_step(T,dir3)
 		if(!isturf(T))
-			return 0
+			return FALSE
 		turfs.Add(T)
 	for(var/turf/T3 in turfs)
 		if(isnull(T3))
 			continue
 		if(!can_move(T3))
-			return 0
-	return 1
+			return FALSE
+	return TRUE
 
 
 /obj/singularity/proc/can_move(turf/T)
 	if(!T)
-		return 0
+		return FALSE
 	if((locate(/obj/machinery/field/containment) in T)||(locate(/obj/machinery/shieldwall) in T))
-		return 0
+		return FALSE
 	else if(locate(/obj/machinery/field/generator) in T)
 		var/obj/machinery/field/generator/G = locate(/obj/machinery/field/generator) in T
-		if(G && G.active)
-			return 0
-	else if(locate(/obj/machinery/shieldwallgen) in T)
-		var/obj/machinery/shieldwallgen/S = locate(/obj/machinery/shieldwallgen) in T
-		if(S && S.active)
-			return 0
-	return 1
+		if(G?.active)
+			return FALSE
+	else if(locate(/obj/machinery/power/shieldwallgen) in T)
+		var/obj/machinery/power/shieldwallgen/S = locate(/obj/machinery/power/shieldwallgen) in T
+		if(S?.active)
+			return FALSE
+	return TRUE
 
 
 /obj/singularity/proc/event()
@@ -383,11 +417,11 @@
 			mezzer()
 		if(3,4) //Sets all nearby mobs on fire
 			if(current_size < STAGE_SIX)
-				return 0
+				return FALSE
 			combust_mobs()
 		else
-			return 0
-	return 1
+			return FALSE
+	return TRUE
 
 
 /obj/singularity/proc/combust_mobs()
@@ -413,7 +447,7 @@
 						to_chat(H, "<span class='notice'>You look directly into the [src.name], good thing you had your protective eyewear on!</span>")
 						return
 
-		M.apply_effect(60, STUN)
+		M.apply_effect(60, EFFECT_STUN)
 		M.visible_message("<span class='danger'>[M] stares blankly at the [src.name]!</span>", \
 						"<span class='userdanger'>You look directly into the [src.name] and feel weak.</span>")
 	return
@@ -429,3 +463,18 @@
 	explosion(src.loc,(dist),(dist*2),(dist*4))
 	qdel(src)
 	return(gain)
+
+/obj/singularity/proc/bluespace_reaction()
+	investigate_log("has been shot by bluespace artillery and destroyed.", INVESTIGATE_SINGULO)
+	qdel(src)
+
+/obj/singularity/deadchat_controlled
+	move_self = FALSE
+
+/obj/singularity/deadchat_controlled/Initialize(mapload, starting_energy)
+	. = ..()
+	AddComponent(/datum/component/deadchat_control, DEMOCRACY_MODE, list(
+	 "up" = CALLBACK(GLOBAL_PROC, .proc/_step, src, NORTH),
+	 "down" = CALLBACK(GLOBAL_PROC, .proc/_step, src, SOUTH),
+	 "left" = CALLBACK(GLOBAL_PROC, .proc/_step, src, WEST),
+	 "right" = CALLBACK(GLOBAL_PROC, .proc/_step, src, EAST)))

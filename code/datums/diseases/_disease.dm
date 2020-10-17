@@ -30,8 +30,9 @@
 	var/list/required_organs = list()
 	var/needs_all_cures = TRUE
 	var/list/strain_data = list() //dna_spread special bullshit
-	var/list/infectable_hosts = list(SPECIES_ORGANIC) //if the disease can spread on organics, synthetics, or undead
+	var/infectable_biotypes = MOB_ORGANIC //if the disease can spread on organics, synthetics, or undead
 	var/process_dead = FALSE //if this ticks while the host is dead
+	var/copy_type = null //if this is null, copies will use the type of the instance being copied
 
 /datum/disease/Destroy()
 	. = ..()
@@ -40,41 +41,46 @@
 	SSdisease.active_diseases.Remove(src)
 
 //add this disease if the host does not already have too many
-/datum/disease/proc/try_infect(var/mob/living/infectee, make_copy = TRUE)
-	if(infectee.diseases.len < DISEASE_LIMIT)
-		infect(infectee, make_copy)
-		return TRUE
-	return FALSE
+/datum/disease/proc/try_infect(mob/living/infectee, make_copy = TRUE)
+	infect(infectee, make_copy)
+	return TRUE
 
 //add the disease with no checks
-/datum/disease/proc/infect(var/mob/living/infectee, make_copy = TRUE)
+/datum/disease/proc/infect(mob/living/infectee, make_copy = TRUE)
 	var/datum/disease/D = make_copy ? Copy() : src
-	infectee.diseases += D
+	LAZYADD(infectee.diseases, D)
 	D.affected_mob = infectee
 	SSdisease.active_diseases += D //Add it to the active diseases list, now that it's actually in a mob and being processed.
 
 	D.after_add()
 	infectee.med_hud_set_status()
 
+	var/turf/source_turf = get_turf(infectee)
+	log_virus("[key_name(infectee)] was infected by virus: [src.admin_details()] at [loc_name(source_turf)]")
+
+//Return a string for admin logging uses, should describe the disease in detail
+/datum/disease/proc/admin_details()
+	return "[src.name] : [src.type]"
+
+
+///Proc to process the disease and decide on whether to advance, cure or make the sympthoms appear. Returns a boolean on whether to continue acting on the symptoms or not.
 /datum/disease/proc/stage_act()
-	var/cure = has_cure()
-
-	if(carrier && !cure)
-		return
-
-	stage = min(stage, max_stages)
-
-	if(!cure)
-		if(prob(stage_prob))
-			stage = min(stage + 1,max_stages)
-	else
+	if(has_cure())
 		if(prob(cure_chance))
-			stage = max(stage - 1, 1)
+			update_stage(max(stage - 1, 1))
 
-	if(disease_flags & CURABLE)
-		if(cure && prob(cure_chance))
+		if(disease_flags & CURABLE && prob(cure_chance))
 			cure()
+			return FALSE
 
+	else if(prob(stage_prob))
+		update_stage(min(stage + 1, max_stages))
+
+	return !carrier
+
+
+/datum/disease/proc/update_stage(new_stage)
+	stage = new_stage
 
 /datum/disease/proc/has_cure()
 	if(!(disease_flags & CURABLE))
@@ -82,7 +88,7 @@
 
 	. = cures.len
 	for(var/C_id in cures)
-		if(!affected_mob.reagents.has_reagent(C_id))
+		if(!affected_mob.has_reagent(C_id))
 			.--
 	if(!. || (needs_all_cures && . < cures.len))
 		return FALSE
@@ -95,7 +101,7 @@
 	if(!(spread_flags & DISEASE_SPREAD_AIRBORNE) && !force_spread)
 		return
 
-	if(affected_mob.reagents.has_reagent("spaceacillin") || (affected_mob.satiety > 0 && prob(affected_mob.satiety/10)))
+	if(affected_mob.has_reagent(/datum/reagent/medicine/spaceacillin) || (affected_mob.satiety > 0 && prob(affected_mob.satiety/10)))
 		return
 
 	var/spread_range = 2
@@ -117,7 +123,7 @@
 		if(end == start)
 			return TRUE
 		var/turf/Temp = get_step_towards(end, start)
-		if(!CANATMOSPASS(end, Temp))
+		if(!TURFS_CAN_SHARE(end, Temp)) //Don't go through a wall
 			return FALSE
 		end = Temp
 
@@ -125,11 +131,11 @@
 /datum/disease/proc/cure(add_resistance = TRUE)
 	if(affected_mob)
 		if(add_resistance && (disease_flags & CAN_RESIST))
-			affected_mob.disease_resistances |= GetDiseaseID()
+			LAZYOR(affected_mob.disease_resistances, GetDiseaseID())
 	qdel(src)
 
 /datum/disease/proc/IsSame(datum/disease/D)
-	if(istype(src, D.type))
+	if(istype(D, type))
 		return TRUE
 	return FALSE
 
@@ -139,9 +145,9 @@
 	var/static/list/copy_vars = list("name", "visibility_flags", "disease_flags", "spread_flags", "form", "desc", "agent", "spread_text",
 									"cure_text", "max_stages", "stage_prob", "viable_mobtypes", "cures", "infectivity", "cure_chance",
 									"bypasses_immunity", "permeability_mod", "severity", "required_organs", "needs_all_cures", "strain_data",
-									"infectable_hosts", "process_dead")
+									"infectable_biotypes", "process_dead")
 
-	var/datum/disease/D = new type()
+	var/datum/disease/D = copy_type ? new copy_type() : new type()
 	for(var/V in copy_vars)
 		var/val = vars[V]
 		if(islist(val))
@@ -158,6 +164,24 @@
 	return "[type]"
 
 /datum/disease/proc/remove_disease()
-	affected_mob.diseases -= src		//remove the datum from the list
+	LAZYREMOVE(affected_mob.diseases, src)	//remove the datum from the list
 	affected_mob.med_hud_set_status()
 	affected_mob = null
+
+//Use this to compare severities
+/proc/get_disease_severity_value(severity)
+	switch(severity)
+		if(DISEASE_SEVERITY_POSITIVE)
+			return 1
+		if(DISEASE_SEVERITY_NONTHREAT)
+			return 2
+		if(DISEASE_SEVERITY_MINOR)
+			return 3
+		if(DISEASE_SEVERITY_MEDIUM)
+			return 4
+		if(DISEASE_SEVERITY_HARMFUL)
+			return 5
+		if(DISEASE_SEVERITY_DANGEROUS)
+			return 6
+		if(DISEASE_SEVERITY_BIOHAZARD)
+			return 7
